@@ -811,6 +811,11 @@ function bindScoreInputs(){
   $("#matchList").querySelectorAll(".si").forEach(inp=>{
     inp.addEventListener("input",()=>{
       const mid=+inp.dataset.m;
+      // Tek hane girilince deplasman kutusuna geç
+      if(inp.dataset.side==="h" && inp.value.length===1){
+        const away=$(`.si[data-m="${mid}"][data-side="a"]`);
+        if(away && !away.disabled){ away.focus(); away.select(); }
+      }
       clearTimeout(saveTimers[mid]);
       saveTimers[mid]=setTimeout(()=>trySave(mid),700);
     });
