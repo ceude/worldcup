@@ -536,7 +536,9 @@ let sb=null, session=null, me=null;
 let matches=[], predsMine={}, predsAll=[], profiles=[], predCounts={};
 let curStage="group", curGroup="ALL", adminStage="group";
 let sortMode="date"; // "date" = tarihe göre (varsayılan), "group" = gruba göre
-let showFinished=false; // tamamlanmış maçları göster/gizle
+let showPast=false; // false = sadece 24 Haziran ve sonrası; true = öncesi de görünür
+// 24 Haziran 2026, Almanya saatiyle gün başı — bu tarihten öncesi varsayılan gizli
+const CUTOFF = new Date(berlinInputToUTCISO("2026-06-24T00:00"));
 let registerMode=false;
 
 const $  = s => document.querySelector(s);
@@ -762,8 +764,8 @@ function renderMatches(){
   let ms=matches.filter(m=>m.stage===curStage);
   if(curStage==="group" && curGroup!=="ALL") ms=ms.filter(m=>m.grp===curGroup);
 
-  // Tamamlanmış maçları filtrele (showFinished false ise gizle)
-  if(!showFinished) ms=ms.filter(m=>!m.finished);
+  // Varsayılan: sadece 24 Haziran ve sonrası. Filtre açıksa öncesi de gelir.
+  if(!showPast) ms=ms.filter(m=> new Date(m.kickoff) >= CUTOFF);
 
   ms=[...ms];
   const groupMode = curStage==="group" && sortMode==="group" && curGroup==="ALL";
@@ -774,8 +776,8 @@ function renderMatches(){
   }
   if(!ms.length){
     const allInStage=matches.filter(m=>m.stage===curStage);
-    const msg = !showFinished && allInStage.length && allInStage.every(m=>m.finished)
-      ? `<div class="empty">Bu sekmedeki tüm maçlar bitti.<br><small style="opacity:.6">Sonuçları görmek için "Tamamlananları göster" geçişini kullan.</small></div>`
+    const msg = !showPast && allInStage.length && allInStage.every(m=>new Date(m.kickoff) < CUTOFF)
+      ? `<div class="empty">Bu sekmedeki maçların hepsi 24 Haziran'dan önce.<br><small style="opacity:.6">Görmek için "24 Haziran öncesini göster" geçişini aç.</small></div>`
       : `<div class="empty">Bu sekmede maç yok.</div>`;
     list.innerHTML=msg; return;
   }
@@ -834,12 +836,12 @@ function renderStageFilters(){
 function renderSortFilters(){
   const box=$("#sortFilters");
   if(curStage!=="group"){ box.innerHTML=""; return; }
-  const finCount=matches.filter(m=>m.stage===curStage && m.finished).length;
-  const toggleHTML = finCount ? `
+  const pastCount=matches.filter(m=>m.stage===curStage && new Date(m.kickoff) < CUTOFF).length;
+  const toggleHTML = pastCount ? `
     <span class="fin-toggle-wrap">
-      <button class="fin-toggle ${showFinished?"on":""}" id="finToggleBtn">
+      <button class="fin-toggle ${showPast?"on":""}" id="finToggleBtn">
         <span class="tog-track"><span class="tog-thumb"></span></span>
-        Tamamlananları göster
+        24 Haziran öncesini göster
       </button>
     </span>` : "";
   box.innerHTML = `
@@ -850,7 +852,7 @@ function renderSortFilters(){
     sortMode=b.dataset.sort; renderSortFilters(); renderMatches();
   });
   const ftb=$("#finToggleBtn");
-  if(ftb) ftb.onclick=()=>{ showFinished=!showFinished; renderSortFilters(); renderMatches(); };
+  if(ftb) ftb.onclick=()=>{ showPast=!showPast; renderSortFilters(); renderMatches(); };
 }
 function renderGroupFilters(){
   const box=$("#groupFilters");
