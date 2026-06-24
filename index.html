@@ -533,7 +533,7 @@ const initials = u => (u||"?").trim().slice(0,2).toUpperCase();
    3) State + Supabase client
    ==================================================================== */
 let sb=null, session=null, me=null;
-let matches=[], predsMine={}, predsAll=[], profiles=[];
+let matches=[], predsMine={}, predsAll=[], profiles=[], predCounts={};
 let curStage="group", curGroup="ALL", adminStage="group";
 let sortMode="date"; // "date" = tarihe göre (varsayılan), "group" = gruba göre
 let showFinished=false; // tamamlanmış maçları göster/gizle
@@ -595,9 +595,9 @@ function grade(pred, m){
   return {pts:0,type:"bad"};
 }
 function userTotals(uid){
-  let pts=0,exact=0,outc=0,graded=0,picks=0;
+  let pts=0,exact=0,outc=0,graded=0,picksLocal=0;
   const byMatch={};
-  predsAll.forEach(p=>{ if(p.user_id===uid){ byMatch[p.match_id]=p; picks++; } });
+  predsAll.forEach(p=>{ if(p.user_id===uid){ byMatch[p.match_id]=p; picksLocal++; } });
   matches.forEach(m=>{
     if(!m.finished) return;
     const g=grade(byMatch[m.id]||null,m);
@@ -606,6 +606,9 @@ function userTotals(uid){
     if(g.type==="exact"){exact++;outc++;}
     else if(g.type==="outc"){outc++;}
   });
+  // Tahmin adedi: tüm kullanıcılar için sunucudan (RPC) gelen gerçek sayı.
+  // RPC yoksa (eski kurulum) görünür tahminlerden say.
+  const picks = (predCounts && predCounts[uid]!=null) ? predCounts[uid] : picksLocal;
   return {pts,exact,outc,graded,picks};
 }
 
@@ -671,16 +674,18 @@ async function loadProfile(){
   }
 }
 async function loadAll(){
-  const [mq,pq,allq,profq]=await Promise.all([
+  const [mq,pq,allq,profq,cntq]=await Promise.all([
     sb.from("matches").select("*").order("ord"),
     sb.from("predictions").select("*").eq("user_id",session.user.id),
     sb.from("predictions").select("user_id,match_id,home,away"),
-    sb.from("profiles").select("id,username,is_admin")
+    sb.from("profiles").select("id,username,is_admin"),
+    sb.rpc("prediction_counts")
   ]);
   matches = mq.data||[];
   predsMine={}; (pq.data||[]).forEach(p=>predsMine[p.match_id]=p);
   predsAll = allq.data||[];
   profiles = profq.data||[];
+  predCounts={}; if(!cntq.error) (cntq.data||[]).forEach(r=>predCounts[r.user_id]=Number(r.cnt));
 }
 
 /* ====================================================================
