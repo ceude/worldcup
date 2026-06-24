@@ -300,7 +300,12 @@ nav.tabs button:hover{color:var(--ink)}
   display:none;place-items:center;padding:20px}
 #modal.show{display:grid}
 .mcard{width:100%;max-width:560px;max-height:86vh;overflow:auto;background:linear-gradient(180deg,#0f2419,#0a1812);
-  border:1px solid var(--line2);border-radius:20px}
+  border:1px solid var(--line2);border-radius:20px;
+  scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
+.mcard::-webkit-scrollbar{width:9px}
+.mcard::-webkit-scrollbar-track{background:transparent}
+.mcard::-webkit-scrollbar-thumb{background:var(--line2);border-radius:8px;border:2px solid transparent;background-clip:content-box}
+.mcard::-webkit-scrollbar-thumb:hover{background:var(--muted);background-clip:content-box}
 .mcard .mh{position:sticky;top:0;background:#0f2419;padding:18px 20px;border-bottom:1px solid var(--line);
   display:flex;align-items:center;gap:13px;z-index:2}
 .mcard .mh .av{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;font-weight:800;
@@ -602,6 +607,7 @@ function userTotals(uid){
   predsAll.forEach(p=>{ if(p.user_id===uid){ byMatch[p.match_id]=p; picksLocal++; } });
   matches.forEach(m=>{
     if(!m.finished) return;
+    if(new Date(m.kickoff) < CUTOFF) return; // sadece 24 Haziran ve sonrası puanlanır
     const g=grade(byMatch[m.id]||null,m);
     if(!g) return;
     graded++; pts+=g.pts;
@@ -942,7 +948,7 @@ function openProfile(uid){
   const prof=profiles.find(p=>p.id===uid); if(!prof) return;
   const t=userTotals(uid);
   const byMatch={}; predsAll.forEach(p=>{ if(p.user_id===uid) byMatch[p.match_id]=p; });
-  const finished=matches.filter(m=>m.finished);
+  const finished=matches.filter(m=>m.finished && new Date(m.kickoff) >= CUTOFF);
 
   const rows=finished.map(m=>{
     const pred=byMatch[m.id]||null;
