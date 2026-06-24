@@ -116,7 +116,7 @@ header.app{max-width:1180px;margin:0 auto;padding:22px 20px 6px;display:flex;ali
 .btn.sm{padding:6px 10px;font-size:12.5px}
 
 /* ===== TABS ===== */
-nav.tabs{max-width:1180px;margin:14px auto 0;padding:0 20px;display:flex;gap:6px;border-bottom:1px solid var(--line)}
+nav.tabs{max-width:1180px;margin:14px auto 0;padding:0 20px;display:flex;gap:6px;border-bottom:1px solid var(--line);flex-wrap:wrap}
 nav.tabs button{background:none;border:none;color:var(--muted);font-weight:700;font-size:14px;padding:12px 14px;
   border-bottom:2px solid transparent;margin-bottom:-1px}
 nav.tabs button.on{color:var(--ink);border-color:var(--gold)}
@@ -127,6 +127,8 @@ nav.tabs button:hover{color:var(--ink)}
 @media(max-width:900px){.wrap{grid-template-columns:1fr}}
 .col-right{position:sticky;top:46px}
 @media(max-width:900px){.col-right{position:static}}
+/* mobilde Lider Tablosu sekmesindeyken sağ kolon tekrar etmesin */
+@media(max-width:900px){#appScreen.lb-tab .col-right{display:none}}
 
 /* ===== FILTER PILLS ===== */
 .filters{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
@@ -192,6 +194,15 @@ nav.tabs button:hover{color:var(--ink)}
 .yp.wait{background:#1b2620;color:var(--muted)}
 .yourpred{font-weight:700;color:#bcd3c4}
 .placeholder-slot{color:#6c8a7c;font-style:italic;font-weight:600}
+
+/* ===== TAHMİNLERİM özet ===== */
+.mypsum{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:4px 0 18px}
+.mypsum .b{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);
+  border-radius:12px;padding:12px 8px;text-align:center}
+.mypsum .b .n{font-family:'Anton';font-size:26px;color:var(--gold);line-height:1}
+.mypsum .b.e .n{color:var(--ok)} .mypsum .b.o .n{color:var(--outc)}
+.mypsum .b .l{font-size:10px;letter-spacing:1px;color:var(--muted);font-weight:800;text-transform:uppercase;margin-top:5px}
+@media(max-width:560px){.mypsum{grid-template-columns:repeat(2,1fr)}}
 
 /* ===== RIGHT: LEADERBOARD ===== */
 .panel{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
@@ -378,6 +389,7 @@ nav.tabs button:hover{color:var(--ink)}
 
   <nav class="tabs">
     <button data-tab="matches" class="on">Maçlar</button>
+    <button data-tab="mypicks">Tahminlerim</button>
     <button data-tab="how">Nasıl Oynanır</button>
     <button data-tab="leaderboard">Lider Tablosu</button>
     <button data-tab="admin" id="adminTab" class="hidden">Yönetim</button>
@@ -388,9 +400,13 @@ nav.tabs button:hover{color:var(--ink)}
       <!-- MATCHES -->
       <section id="tab-matches">
         <div class="filters" id="stageFilters"></div>
-        <div class="filters" id="groupFilters"></div>
         <div class="filters" id="sortFilters"></div>
         <div id="matchList"><div class="loading"><div class="spin"></div>Maçlar yükleniyor…</div></div>
+      </section>
+
+      <!-- MY PICKS -->
+      <section id="tab-mypicks" class="hidden">
+        <div id="mypicksList"><div class="loading"><div class="spin"></div>Tahminlerin yükleniyor…</div></div>
       </section>
 
       <!-- HOW TO -->
@@ -425,7 +441,7 @@ nav.tabs button:hover{color:var(--ink)}
         <p style="color:var(--muted);font-size:13.5px;max-width:640px">
           Biten maçların skorunu gir (otomatik "bitti" işaretlenir). Eleme maçlarında takımlar belli oldukça
           isimleri yaz (İngilizce isimler — örn. <code style="font-size:12px">Spain</code>, <code style="font-size:12px">Brazil</code>).
-          Bayraklar ve Türkçe isimler otomatik gelir.</p>
+          Bayraklar ve Türkçe isimler otomatik gelir. Maç saatini de buradan düzeltebilirsin.</p>
         <div class="filters" id="adminStageFilters"></div>
         <div id="adminList"></div>
       </section>
@@ -736,8 +752,6 @@ function matchCard(m){
   </div>`;
 }
 
-function renderFinishedToggle(){ /* merged into renderSortFilters */ }
-
 function renderMatches(){
   const list=$("#matchList");
   let ms=matches.filter(m=>m.stage===curStage);
@@ -755,7 +769,7 @@ function renderMatches(){
   }
   if(!ms.length){
     const allInStage=matches.filter(m=>m.stage===curStage);
-    const msg = !showFinished && allInStage.every(m=>m.finished)
+    const msg = !showFinished && allInStage.length && allInStage.every(m=>m.finished)
       ? `<div class="empty">Bu sekmedeki tüm maçlar bitti.<br><small style="opacity:.6">Sonuçları görmek için "Tamamlananları göster" geçişini kullan.</small></div>`
       : `<div class="empty">Bu sekmede maç yok.</div>`;
     list.innerHTML=msg; return;
@@ -767,8 +781,43 @@ function renderMatches(){
     html+=matchCard(m);
   });
   list.innerHTML=html;
-  bindScoreInputs();
+  bindScoreInputs(list);
 }
+
+/* ====================================================================
+   8b) RENDER — Tahminlerim (kendi tahminlerin: gelecek + tamamlanan)
+   ==================================================================== */
+function renderMyPicks(){
+  const box=$("#mypicksList");
+  if(!box) return;
+  const mine = matches.filter(m=>predsMine[m.id]);
+  if(!mine.length){
+    box.innerHTML=`<div class="empty">Henüz tahmin yapmadın.<br><small style="opacity:.6">Maçlar sekmesinden skor tahminlerini gir, hepsi burada toplanır.</small></div>`;
+    return;
+  }
+  const upcoming = mine.filter(m=>!m.finished).sort((a,b)=>new Date(a.kickoff)-new Date(b.kickoff));
+  const done     = mine.filter(m=>m.finished).sort((a,b)=>new Date(b.kickoff)-new Date(a.kickoff));
+  const t=userTotals(session.user.id);
+
+  let html=`<div class="mypsum">
+    <div class="b"><div class="n">${t.pts}</div><div class="l">Puan</div></div>
+    <div class="b e"><div class="n">${t.exact}</div><div class="l">Tam skor</div></div>
+    <div class="b o"><div class="n">${t.outc}</div><div class="l">Doğru sonuç</div></div>
+    <div class="b"><div class="n">${mine.length}</div><div class="l">Tahmin</div></div>
+  </div>`;
+
+  if(upcoming.length){
+    html+=`<div class="dayhdr">🟢 Gelecek &amp; Açık Maçlar</div>`;
+    upcoming.forEach(m=>html+=matchCard(m));
+  }
+  if(done.length){
+    html+=`<div class="dayhdr">✅ Tamamlanan Maçlar</div>`;
+    done.forEach(m=>html+=matchCard(m));
+  }
+  box.innerHTML=html;
+  bindScoreInputs(box);
+}
+
 function renderStageFilters(){
   const present=new Set(matches.map(m=>m.stage));
   $("#stageFilters").innerHTML = STAGES.filter(s=>present.has(s.k)).map(s=>
@@ -800,34 +849,32 @@ function renderSortFilters(){
 }
 function renderGroupFilters(){
   const box=$("#groupFilters");
-  if(curStage!=="group"){ box.innerHTML=""; return; }
-  const gs=[...new Set(matches.filter(m=>m.grp).map(m=>m.grp))].sort();
-  box.innerHTML = `<button class="pill ${curGroup==="ALL"?"on":""}" data-g="ALL">Tüm Gruplar</button>`+
-    gs.map(g=>`<button class="pill ${curGroup===g?"on":""}" data-g="${g}">Grup ${g}</button>`).join("");
-  box.querySelectorAll(".pill").forEach(b=>b.onclick=()=>{ curGroup=b.dataset.g; renderGroupFilters(); renderMatches(); });
+  if(box) box.innerHTML=""; // grup filtreleri kaldırıldı
 }
 
 /* ====================================================================
    9) Skor girişi → otomatik kaydet → bant
    ==================================================================== */
 const saveTimers={};
-function bindScoreInputs(){
-  $("#matchList").querySelectorAll(".si").forEach(inp=>{
+function bindScoreInputs(root){
+  (root||document).querySelectorAll(".si").forEach(inp=>{
     inp.addEventListener("input",()=>{
+      const box=inp.closest(".scorebox");
       const mid=+inp.dataset.m;
-      // Tek hane girilince deplasman kutusuna geç
-      if(inp.dataset.side==="h" && inp.value.length===1){
-        const away=$(`.si[data-m="${mid}"][data-side="a"]`);
+      // Ev sahibine tek hane girilince deplasman kutusuna geç
+      if(inp.dataset.side==="h" && inp.value.length===1 && box){
+        const away=box.querySelector('.si[data-side="a"]');
         if(away && !away.disabled){ away.focus(); away.select(); }
       }
       clearTimeout(saveTimers[mid]);
-      saveTimers[mid]=setTimeout(()=>trySave(mid),700);
+      saveTimers[mid]=setTimeout(()=>trySave(mid,box),700);
     });
   });
 }
-async function trySave(mid){
-  const h=$(`.si[data-m="${mid}"][data-side="h"]`);
-  const a=$(`.si[data-m="${mid}"][data-side="a"]`);
+async function trySave(mid,box){
+  const scope = box || document;
+  const h=scope.querySelector(`.si[data-m="${mid}"][data-side="h"]`);
+  const a=scope.querySelector(`.si[data-m="${mid}"][data-side="a"]`);
   if(!h||!a) return;
   if(h.value==="" || a.value==="") return;
   let hv=Math.max(0,Math.min(99,parseInt(h.value,10)));
@@ -843,7 +890,9 @@ async function trySave(mid){
     predsMine[mid]={user_id:session.user.id,match_id:mid,home:hv,away:av};
     const i=predsAll.findIndex(p=>p.user_id===session.user.id && p.match_id===mid);
     if(i>=0) predsAll[i]={...predsAll[i],home:hv,away:av}; else predsAll.push({user_id:session.user.id,match_id:mid,home:hv,away:av});
-    h.classList.add("act"); a.classList.add("act");
+    // Aynı maçın tüm kopyalarını (Maçlar + Tahminlerim sekmesi) eşitle
+    document.querySelectorAll(`.si[data-m="${mid}"][data-side="h"]`).forEach(el=>{ el.value=hv; el.classList.add("act"); });
+    document.querySelectorAll(`.si[data-m="${mid}"][data-side="a"]`).forEach(el=>{ el.value=av; el.classList.add("act"); });
     band(`${trName(m.team_home)} ${hv} – ${av} ${trName(m.team_away)}`,"Tahmin kaydedildi");
   }catch(err){
     band((err&&err.message)||"Kaydedilemedi","Hata",true);
@@ -958,7 +1007,7 @@ function startRibbonScroll(){
 }
 
 /* ====================================================================
-   12) YÖNETİM PANELİ — tarihe göre sıralama eklendi
+   12) YÖNETİM PANELİ — tarihe göre sıralama + saat düzenleme
    ==================================================================== */
 function renderAdminFilters(){
   const present=new Set(matches.map(m=>m.stage));
@@ -1019,7 +1068,7 @@ async function adminSave(id,btn){
     if(error) throw error;
     Object.assign(matches.find(m=>m.id===id),patch);
     band("Maç güncellendi","Yönetim");
-    renderLeaderboard(); renderRibbon(); renderMatches(); renderAdmin(); renderSortFilters();
+    renderLeaderboard(); renderRibbon(); renderMatches(); renderMyPicks(); renderAdmin(); renderSortFilters();
   }catch(err){ band((err&&err.message)||"Hata","Yönetim",true); }
   finally{ btn.disabled=false; btn.textContent="Kaydet"; }
 }
@@ -1030,11 +1079,15 @@ async function adminSave(id,btn){
 function switchTab(t){
   document.querySelectorAll("nav.tabs button").forEach(b=>b.classList.toggle("on",b.dataset.tab===t));
   show($("#tab-matches"),t==="matches");
+  show($("#tab-mypicks"),t==="mypicks");
   show($("#tab-how"),t==="how");
   show($("#tab-leaderboard"),t==="leaderboard");
   show($("#tab-admin"),t==="admin");
+  // mobilde Lider Tablosu sekmesindeyken sağdaki kopya tabloyu gizle
+  $("#appScreen").classList.toggle("lb-tab", t==="leaderboard");
   if(t==="admin"){ renderAdminFilters(); renderAdmin(); }
   if(t==="leaderboard"){ renderLeaderboardTab(); }
+  if(t==="mypicks"){ renderMyPicks(); }
 }
 function renderLeaderboardTab(){
   const rows=profiles.map(p=>({...p,...userTotals(p.id)}))
@@ -1059,7 +1112,8 @@ function renderLeaderboardTab(){
 }
 
 function renderAll(){
-  renderRibbon(); renderStageFilters(); renderGroupFilters(); renderSortFilters(); renderMatches(); renderLeaderboard();
+  renderRibbon(); renderStageFilters(); renderGroupFilters(); renderSortFilters();
+  renderMatches(); renderMyPicks(); renderLeaderboard(); renderLeaderboardTab();
 }
 async function enterApp(){
   show($("#authScreen"),false); show($("#setupScreen"),false); show($("#appScreen"),true);
