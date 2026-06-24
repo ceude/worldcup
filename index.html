@@ -595,9 +595,9 @@ function grade(pred, m){
   return {pts:0,type:"bad"};
 }
 function userTotals(uid){
-  let pts=0,exact=0,outc=0,graded=0;
+  let pts=0,exact=0,outc=0,graded=0,picks=0;
   const byMatch={};
-  predsAll.forEach(p=>{ if(p.user_id===uid) byMatch[p.match_id]=p; });
+  predsAll.forEach(p=>{ if(p.user_id===uid){ byMatch[p.match_id]=p; picks++; } });
   matches.forEach(m=>{
     if(!m.finished) return;
     const g=grade(byMatch[m.id]||null,m);
@@ -606,7 +606,7 @@ function userTotals(uid){
     if(g.type==="exact"){exact++;outc++;}
     else if(g.type==="outc"){outc++;}
   });
-  return {pts,exact,outc,graded};
+  return {pts,exact,outc,graded,picks};
 }
 
 /* ====================================================================
@@ -925,7 +925,7 @@ function renderLeaderboard(){
       <div class="rank ${gcls}">${medal}</div>
       <div class="lbav">${esc(initials(r.username))}</div>
       <div class="lbinfo"><div class="nm">${esc(r.username)}${r.is_admin?' ⚙️':''}</div>
-        <div class="st"><span class="e">${r.exact} tam</span> · <span class="o">${r.outc} sonuç</span> · ${r.graded} maç</div></div>
+        <div class="st"><span class="e">${r.exact} tam</span> · <span class="o">${r.outc} sonuç</span> · ${r.picks} tahmin</div></div>
       <div class="lbpts">${r.pts}<small>PUAN</small></div>
     </div>`;
   }).join("");
@@ -955,7 +955,7 @@ function openProfile(uid){
   $("#modalCard").innerHTML=`
     <div class="mh"><div class="av">${esc(initials(prof.username))}</div>
       <div><h3>${esc(prof.username)}</h3>
-        <div class="s">${t.pts} puan · ${t.exact} tam skor · ${t.outc} doğru sonuç · ${t.graded} maç</div></div>
+        <div class="s">${t.pts} puan · ${t.exact} tam skor · ${t.outc} doğru sonuç · ${t.picks} tahmin</div></div>
       <button class="x" id="mClose">✕</button></div>
     <div class="legend">
       <span><i class="lg-e"></i> Skoru tam bildi (+100)</span>
@@ -1104,7 +1104,7 @@ function renderLeaderboardTab(){
         <div class="rank ${gcls}">${medal}</div>
         <div class="lbav">${esc(initials(r.username))}</div>
         <div class="lbinfo"><div class="nm">${esc(r.username)}${r.is_admin?' ⚙️':''}</div>
-          <div class="st"><span class="e">${r.exact} tam</span> · <span class="o">${r.outc} sonuç</span> · ${r.graded} maç</div></div>
+          <div class="st"><span class="e">${r.exact} tam</span> · <span class="o">${r.outc} sonuç</span> · ${r.picks} tahmin</div></div>
         <div class="lbpts">${r.pts}<small>PUAN</small></div>
       </div>`;
     }).join("")+`</div>`;
