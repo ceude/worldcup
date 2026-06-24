@@ -39,6 +39,45 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 input[type=number]{-moz-appearance:textfield}
 a{color:var(--gold)}
 
+/* ===== AD BANNER ===== */
+.adbanner{
+  display:flex;align-items:center;gap:12px;
+  background:linear-gradient(90deg,#0c2218,#0f2d1e,#0c2218);
+  border-bottom:1px solid rgba(43,213,117,.18);
+  padding:9px 20px;text-decoration:none;color:var(--ink);
+  position:relative;overflow:hidden;
+  transition:background .2s;
+}
+.adbanner:hover{background:linear-gradient(90deg,#112a1f,#163825,#112a1f)}
+.adbanner::before{
+  content:"";position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent,rgba(43,213,117,.04),transparent);
+  pointer-events:none;
+}
+.adbanner img{
+  width:36px;height:36px;border-radius:9px;
+  border:1px solid rgba(43,213,117,.25);
+  flex:0 0 auto;object-fit:cover;
+}
+.adbanner .adt{display:flex;flex-direction:column;flex:1;min-width:0;gap:1px}
+.adbanner .adspon{
+  font-size:9px;letter-spacing:1.5px;font-weight:800;
+  color:var(--ok);text-transform:uppercase;opacity:.75;
+}
+.adbanner .adt b{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+.adbanner .addesc{font-size:11px;color:var(--muted);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.adbanner .adcta{
+  flex:0 0 auto;
+  background:linear-gradient(135deg,#1c4a2e,#0f2d1e);
+  border:1px solid rgba(43,213,117,.35);
+  color:var(--ok);
+  font-size:11.5px;font-weight:800;
+  padding:6px 12px;border-radius:8px;
+  white-space:nowrap;
+  letter-spacing:.3px;
+}
+.adbanner:hover .adcta{background:linear-gradient(135deg,#22572f,#14381f);border-color:rgba(43,213,117,.6)}
+
 /* ===== TOP RIBBON TICKER ===== */
 #ribbon{position:sticky;top:0;z-index:40;background:linear-gradient(90deg,#0a1611,#0e2218,#0a1611);
   border-bottom:1px solid var(--line);overflow:hidden;height:34px;display:flex;align-items:center}
@@ -46,12 +85,20 @@ a{color:var(--gold)}
   letter-spacing:1px;padding:5px 10px;height:34px;display:flex;align-items:center;text-transform:uppercase;
   position:relative;z-index:2}
 #ribbon .viewport{flex:1;min-width:0;height:34px;overflow:hidden;position:relative}
-#ribbon .track{position:absolute;top:0;left:0;display:flex;gap:30px;white-space:nowrap;
-  animation:scroll 60s linear infinite;padding-left:30px;height:34px;align-items:center}
+#ribbon .track{
+  position:absolute;top:0;left:0;display:flex;gap:30px;white-space:nowrap;
+  height:34px;align-items:center;padding-left:30px;
+  /* CSS animation — works on mobile too */
+  animation:scroll 60s linear infinite;
+  will-change:transform;
+}
 #ribbon .track:hover{animation-play-state:paused}
 #ribbon .it{font-size:12.5px;color:#cfe3d6;font-weight:600;display:inline-flex;gap:8px;align-items:center}
 #ribbon .it b{font-family:'Anton';font-weight:400;color:var(--gold);font-size:14px;letter-spacing:1px}
-@keyframes scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@keyframes scroll{
+  0%{transform:translateX(0)}
+  100%{transform:translateX(-50%)}
+}
 @media(prefers-reduced-motion:reduce){#ribbon .track{animation:none}}
 
 /* ===== HEADER ===== */
@@ -96,6 +143,9 @@ nav.tabs button:hover{color:var(--ink)}
 .pill.on{background:var(--gold);color:#241400;border-color:var(--gold)}
 .pill:hover{color:var(--ink)}
 .pill.on:hover{color:#241400}
+/* toggle pill for finished matches */
+.pill.toggle-fin{border-color:rgba(43,213,117,.3);color:#9ecfb5}
+.pill.toggle-fin.on{background:var(--okdim);color:var(--ok);border-color:rgba(43,213,117,.5)}
 
 /* ===== MATCH CARD ===== */
 .daygroup{margin-bottom:8px}
@@ -294,7 +344,22 @@ nav.tabs button:hover{color:var(--ink)}
 
 <!-- ================= APP ================= -->
 <div id="appScreen" class="hidden">
-  <div id="ribbon"><div class="tag">⚽ CANLI SKORLAR</div><div class="viewport"><div class="track" id="ribbonTrack"></div></div></div>
+
+  <!-- AD BANNER (en üst) -->
+  <a class="adbanner" id="adBanner" href="https://apps.apple.com/app/id6755360072" target="_blank" rel="noopener">
+    <img id="adLogo" src="https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/42/b4/36/42b43605-401c-4aa2-b956-2b888a0e8235/Placeholder.mill/400x400bb-75.webp" alt="SprachSnack" onerror="this.style.display='none'">
+    <div class="adt">
+      <span class="adspon">REKLAM</span>
+      <b>SprachSnack: Deutsche Wörter</b>
+      <span class="addesc">3500+ TELC kelimesiyle Almanca öğren · Ücretsiz</span>
+    </div>
+    <span class="adcta">App Store ↗</span>
+  </a>
+
+  <div id="ribbon">
+    <div class="tag">⚽ MAÇ SONUÇLARI</div>
+    <div class="viewport"><div class="track" id="ribbonTrack"></div></div>
+  </div>
 
   <header class="app">
     <div class="brand">
@@ -322,6 +387,8 @@ nav.tabs button:hover{color:var(--ink)}
         <div class="filters" id="stageFilters"></div>
         <div class="filters" id="groupFilters"></div>
         <div class="filters" id="sortFilters"></div>
+        <!-- Tamamlanmış maçları göster/gizle butonu -->
+        <div class="filters" id="finishedToggleRow"></div>
         <div id="matchList"><div class="loading"><div class="spin"></div>Maçlar yükleniyor…</div></div>
       </section>
 
@@ -345,14 +412,14 @@ nav.tabs button:hover{color:var(--ink)}
           <li>Başkalarının tahminlerini ancak maç başladıktan sonra görebilirsin.</li>
           <li>Lider tablosunda bir isme tıkla → o kişinin tüm tahminlerini, neyde sonucu neyde skoru bildiğini gör.</li>
         </ul>
-        <div class="note">💡 Tahminini yazdığın an ekranın altından <b>“kaydedildi”</b> bandı kayar. Ayrıca istediğinde kutucukları değiştirip tekrar kaydedebilirsin.</div>
+        <div class="note">💡 Tahminini yazdığın an ekranın altından <b>"kaydedildi"</b> bandı kayar. Ayrıca istediğinde kutucukları değiştirip tekrar kaydedebilirsin.</div>
       </section>
 
       <!-- ADMIN -->
       <section id="tab-admin" class="admin hidden">
         <h2>Yönetim — Skor &amp; Takım Gir</h2>
         <p style="color:var(--muted);font-size:13.5px;max-width:640px">
-          Biten maçların skorunu gir (otomatik “bitti” işaretlenir). Eleme maçlarında takımlar belli oldukça
+          Biten maçların skorunu gir (otomatik "bitti" işaretlenir). Eleme maçlarında takımlar belli oldukça
           isimleri yaz (İngilizce isimler — örn. <code style="font-size:12px">Spain</code>, <code style="font-size:12px">Brazil</code>).
           Bayraklar ve Türkçe isimler otomatik gelir.</p>
         <div class="filters" id="adminStageFilters"></div>
@@ -386,7 +453,7 @@ nav.tabs button:hover{color:var(--ink)}
   <ol style="color:#cbe0d2;line-height:1.9;font-size:14px">
     <li>Supabase'de <code>supabase_setup.sql</code> dosyasını çalıştır.</li>
     <li>Bu HTML dosyasının en üstündeki <code>SUPABASE_URL</code> ve <code>SUPABASE_ANON_KEY</code> değerlerini kendi projendekiyle değiştir.</li>
-    <li>Supabase &gt; Authentication &gt; Sign In / Providers &gt; Email içinde <b>“Confirm email”</b> seçeneğini kapat (kullanıcı adıyla giriş için).</li>
+    <li>Supabase &gt; Authentication &gt; Sign In / Providers &gt; Email içinde <b>"Confirm email"</b> seçeneğini kapat (kullanıcı adıyla giriş için).</li>
   </ol>
 </div></div>
 
@@ -449,6 +516,7 @@ let sb=null, session=null, me=null;
 let matches=[], predsMine={}, predsAll=[], profiles=[];
 let curStage="group", curGroup="ALL", adminStage="group";
 let sortMode="date"; // "date" = tarihe göre (varsayılan), "group" = gruba göre
+let showFinished=false; // tamamlanmış maçları göster/gizle
 let registerMode=false;
 
 const $  = s => document.querySelector(s);
@@ -550,7 +618,6 @@ async function doAuth(){
         const {error:pe}=await sb.from("profiles").insert({id:data.user.id,username:u});
         if(pe && pe.code!=="23505") throw pe;
       }
-      // bazı projelerde signUp otomatik login yapar; değilse login dene
       if(!data.session){
         const {error:le}=await sb.auth.signInWithPassword({email,password:p});
         if(le) throw le;
@@ -576,7 +643,7 @@ async function doAuth(){
 async function loadProfile(){
   const {data}=await sb.from("profiles").select("*").eq("id",session.user.id).maybeSingle();
   me=data;
-  if(!me){ // profil yoksa oluştur (eski kayıtlar için)
+  if(!me){
     const u=session.user.email.split("@")[0];
     await sb.from("profiles").insert({id:session.user.id,username:u});
     const r=await sb.from("profiles").select("*").eq("id",session.user.id).maybeSingle();
@@ -619,7 +686,6 @@ function matchCard(m){
   const pred=predsMine[m.id];
   const meta = m.grp ? `Grup <b>${m.grp}</b>` : `<b>${esc(m.label||STAGE_LABEL[m.stage])}</b>`;
 
-  // orta blok: skor inputları ya da gerçek skor
   let center;
   if(fin){
     center=`<div class="actual"><div class="sc">${m.home_score} – ${m.away_score}</div><div class="lab">Sonuç</div></div>`;
@@ -634,7 +700,6 @@ function matchCard(m){
     </div>`;
   }
 
-  // alt satır
   let foot="";
   if(fin){
     const g=grade(pred||null,m);
@@ -666,10 +731,25 @@ function matchCard(m){
     <div class="mfoot">${foot}</div>
   </div>`;
 }
+
+function renderFinishedToggle(){
+  const box=$("#finishedToggleRow");
+  const finCount=matches.filter(m=>m.stage===curStage && m.finished).length;
+  if(!finCount){ box.innerHTML=""; return; }
+  box.innerHTML=`<button class="pill toggle-fin ${showFinished?"on":""}" id="finToggleBtn">
+    ${showFinished?"✓ Biten maçlar gösteriliyor":"🏁 Biten maçları göster ("+finCount+")"}
+  </button>`;
+  $("#finToggleBtn").onclick=()=>{ showFinished=!showFinished; renderFinishedToggle(); renderMatches(); };
+}
+
 function renderMatches(){
   const list=$("#matchList");
   let ms=matches.filter(m=>m.stage===curStage);
   if(curStage==="group" && curGroup!=="ALL") ms=ms.filter(m=>m.grp===curGroup);
+
+  // Tamamlanmış maçları filtrele (showFinished false ise gizle)
+  if(!showFinished) ms=ms.filter(m=>!m.finished);
+
   ms=[...ms];
   const groupMode = curStage==="group" && sortMode==="group" && curGroup==="ALL";
   if(groupMode){
@@ -677,8 +757,13 @@ function renderMatches(){
   }else{
     ms.sort((a,b)=> new Date(a.kickoff)-new Date(b.kickoff));
   }
-  if(!ms.length){ list.innerHTML=`<div class="empty">Bu sekmede maç yok.</div>`; return; }
-  // grup modunda grup başlıklarına, tarih modunda gün başlıklarına göre böl
+  if(!ms.length){
+    const allInStage=matches.filter(m=>m.stage===curStage);
+    const msg = !showFinished && allInStage.every(m=>m.finished)
+      ? `<div class="empty">Bu sekmedeki tüm maçlar bitti.<br><small style="opacity:.6">Sonuçları görmek için yukarıdaki "Biten maçları göster" butonuna tıkla.</small></div>`
+      : `<div class="empty">Bu sekmede maç yok.</div>`;
+    list.innerHTML=msg; return;
+  }
   let html="", lastKey=null;
   ms.forEach(m=>{
     const key = groupMode ? `Grup ${m.grp||"?"}` : dayKey(m.kickoff);
@@ -693,7 +778,7 @@ function renderStageFilters(){
   $("#stageFilters").innerHTML = STAGES.filter(s=>present.has(s.k)).map(s=>
     `<button class="pill ${s.k===curStage?"on":""}" data-stage="${s.k}">${s.label}</button>`).join("");
   $("#stageFilters").querySelectorAll(".pill").forEach(b=>b.onclick=()=>{
-    curStage=b.dataset.stage; curGroup="ALL"; renderStageFilters(); renderGroupFilters(); renderSortFilters(); renderMatches();
+    curStage=b.dataset.stage; curGroup="ALL"; renderStageFilters(); renderGroupFilters(); renderSortFilters(); renderFinishedToggle(); renderMatches();
   });
 }
 function renderSortFilters(){
@@ -732,7 +817,7 @@ async function trySave(mid){
   const h=$(`.si[data-m="${mid}"][data-side="h"]`);
   const a=$(`.si[data-m="${mid}"][data-side="a"]`);
   if(!h||!a) return;
-  if(h.value==="" || a.value==="") return; // ikisi de dolmadan kaydetme
+  if(h.value==="" || a.value==="") return;
   let hv=Math.max(0,Math.min(99,parseInt(h.value,10)));
   let av=Math.max(0,Math.min(99,parseInt(a.value,10)));
   if(isNaN(hv)||isNaN(av)) return;
@@ -744,7 +829,6 @@ async function trySave(mid){
       {onConflict:"user_id,match_id"});
     if(error) throw error;
     predsMine[mid]={user_id:session.user.id,match_id:mid,home:hv,away:av};
-    // predsAll içinde güncelle (kendi)
     const i=predsAll.findIndex(p=>p.user_id===session.user.id && p.match_id===mid);
     if(i>=0) predsAll[i]={...predsAll[i],home:hv,away:av}; else predsAll.push({user_id:session.user.id,match_id:mid,home:hv,away:av});
     h.classList.add("act"); a.classList.add("act");
@@ -824,7 +908,7 @@ function openProfile(uid){
 function closeModal(){ $("#modal").classList.remove("show"); }
 
 /* ====================================================================
-   11) RIBBON (canlı/biten skor şeridi)
+   11) RIBBON (maç sonuçları şeridi) — mobil uyumlu JS animasyonu
    ==================================================================== */
 function renderRibbon(){
   const done=matches.filter(m=>m.finished).slice(-14);
@@ -834,11 +918,43 @@ function renderRibbon(){
     return `<span class="it">${esc(trName(m.team_home))} <b>vs</b> ${esc(trName(m.team_away))} · ${fmtKick(m.kickoff)}</span>`;
   };
   const seq=items.map(cell).join("");
-  $("#ribbonTrack").innerHTML = seq+seq; // kesintisiz döngü için iki kez
+  // İçeriği üç kez tekrarlayarak kesintisiz döngü sağla (özellikle az öge varsa)
+  $("#ribbonTrack").innerHTML = seq+seq+seq;
+
+  // CSS animasyonu mobilde çalışmıyorsa JS fallback
+  startRibbonScroll();
+}
+
+let ribbonRAF=null, ribbonPos=0, ribbonSpeed=0.6;
+function startRibbonScroll(){
+  if(ribbonRAF) cancelAnimationFrame(ribbonRAF);
+  const track=$("#ribbonTrack");
+  if(!track) return;
+
+  // Önce CSS animasyonu dene — desteklemiyorsa JS'e geç
+  const style=window.getComputedStyle(track);
+  const animName=style.animationName;
+  if(animName && animName!=="none"){
+    // CSS animasyonu çalışıyor, JS'e gerek yok
+    return;
+  }
+
+  // JS tabanlı scroll (eski/bazı mobil tarayıcılar için)
+  ribbonPos=0;
+  function step(){
+    if(!track) return;
+    ribbonPos+=ribbonSpeed;
+    const totalW=track.scrollWidth/3; // 3 kopya olduğundan 1/3'ü tek döngü
+    if(ribbonPos>=totalW) ribbonPos=0;
+    track.style.transform=`translateX(-${ribbonPos}px)`;
+    track.style.animation="none"; // CSS animasyonunu devre dışı bırak
+    ribbonRAF=requestAnimationFrame(step);
+  }
+  ribbonRAF=requestAnimationFrame(step);
 }
 
 /* ====================================================================
-   12) YÖNETİM PANELİ
+   12) YÖNETİM PANELİ — tarihe göre sıralama eklendi
    ==================================================================== */
 function renderAdminFilters(){
   const present=new Set(matches.map(m=>m.stage));
@@ -850,7 +966,8 @@ function renderAdminFilters(){
 }
 function renderAdmin(){
   const box=$("#adminList");
-  const ms=matches.filter(m=>m.stage===adminStage);
+  // Tarihe göre sırala
+  const ms=[...matches.filter(m=>m.stage===adminStage)].sort((a,b)=>new Date(a.kickoff)-new Date(b.kickoff));
   box.innerHTML=ms.map(m=>{
     const label=m.grp?`Grup ${m.grp}`:(m.label||STAGE_LABEL[m.stage]);
     const teamset = (m.stage!=="group") ? `
@@ -861,7 +978,7 @@ function renderAdmin(){
     const hn=m.team_home?trName(m.team_home):(m.slot_home||"?");
     const an=m.team_away?trName(m.team_away):(m.slot_away||"?");
     return `<div style="margin-bottom:8px">
-      <div style="font-size:11px;color:var(--muted);font-weight:700;margin:0 2px 4px">${esc(label)} · şu an: ${fmtKick(m.kickoff)} (DE)</div>
+      <div style="font-size:11px;color:var(--muted);font-weight:700;margin:0 2px 4px">${esc(label)} · ${fmtKick(m.kickoff)} (DE)${m.finished?' · ✅ Bitti':''}</div>
       ${teamset}
       <div class="kickoffset">
         <input type="datetime-local" data-id="${m.id}" data-f="kickoff" value="${toBerlinInputValue(m.kickoff)}">
@@ -886,7 +1003,7 @@ async function adminSave(id,btn){
   const patch={};
   if(th!==null) patch.team_home = th||null;
   if(ta!==null) patch.team_away = ta||null;
-  if(ko){ try{ patch.kickoff = berlinInputToUTCISO(ko); }catch(e){ /* geçersiz tarih girilmişse görmezden gel */ } }
+  if(ko){ try{ patch.kickoff = berlinInputToUTCISO(ko); }catch(e){} }
   if(hs!==""&&hs!=null && as!==""&&as!=null){
     patch.home_score=parseInt(hs,10); patch.away_score=parseInt(as,10); patch.finished=true;
   }else{
@@ -898,7 +1015,7 @@ async function adminSave(id,btn){
     if(error) throw error;
     Object.assign(matches.find(m=>m.id===id),patch);
     band("Maç güncellendi","Yönetim");
-    renderLeaderboard(); renderRibbon(); renderMatches(); renderAdmin();
+    renderLeaderboard(); renderRibbon(); renderMatches(); renderAdmin(); renderFinishedToggle();
   }catch(err){ band((err&&err.message)||"Hata","Yönetim",true); }
   finally{ btn.disabled=false; btn.textContent="Kaydet"; }
 }
@@ -914,7 +1031,7 @@ function switchTab(t){
   if(t==="admin"){ renderAdminFilters(); renderAdmin(); }
 }
 function renderAll(){
-  renderRibbon(); renderStageFilters(); renderGroupFilters(); renderSortFilters(); renderMatches(); renderLeaderboard();
+  renderRibbon(); renderStageFilters(); renderGroupFilters(); renderSortFilters(); renderFinishedToggle(); renderMatches(); renderLeaderboard();
 }
 async function enterApp(){
   show($("#authScreen"),false); show($("#setupScreen"),false); show($("#appScreen"),true);
