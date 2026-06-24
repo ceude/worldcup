@@ -137,15 +137,25 @@ nav.tabs button:hover{color:var(--ink)}
 @media(max-width:900px){.col-right{position:static}}
 
 /* ===== FILTER PILLS ===== */
-.filters{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}
+.filters{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
 .pill{background:var(--panel);border:1px solid var(--line);color:var(--muted);border-radius:999px;
   padding:7px 13px;font-size:12.5px;font-weight:700}
 .pill.on{background:var(--gold);color:#241400;border-color:var(--gold)}
 .pill:hover{color:var(--ink)}
 .pill.on:hover{color:#241400}
-/* toggle pill for finished matches */
-.pill.toggle-fin{border-color:rgba(43,213,117,.3);color:#9ecfb5}
-.pill.toggle-fin.on{background:var(--okdim);color:var(--ok);border-color:rgba(43,213,117,.5)}
+/* finished toggle switch — sits in sort row, pushed right */
+.fin-toggle-wrap{margin-left:auto}
+.fin-toggle{display:inline-flex;align-items:center;gap:7px;background:var(--panel);
+  border:1px solid var(--line);border-radius:999px;padding:6px 12px 6px 8px;
+  font-size:12.5px;font-weight:700;color:var(--muted);cursor:pointer;transition:all .18s}
+.fin-toggle:hover{color:var(--ink);border-color:var(--line2)}
+.fin-toggle.on{background:var(--okdim);border-color:rgba(43,213,117,.4);color:var(--ok)}
+.fin-toggle .tog-track{width:28px;height:16px;border-radius:999px;background:var(--line2);
+  position:relative;transition:background .18s;flex:0 0 auto}
+.fin-toggle.on .tog-track{background:var(--ok)}
+.fin-toggle .tog-thumb{position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;
+  background:#fff;transition:transform .18s;opacity:.6}
+.fin-toggle.on .tog-thumb{transform:translateX(12px);opacity:1}
 
 /* ===== MATCH CARD ===== */
 .daygroup{margin-bottom:8px}
@@ -387,8 +397,6 @@ nav.tabs button:hover{color:var(--ink)}
         <div class="filters" id="stageFilters"></div>
         <div class="filters" id="groupFilters"></div>
         <div class="filters" id="sortFilters"></div>
-        <!-- Tamamlanmış maçları göster/gizle butonu -->
-        <div class="filters" id="finishedToggleRow"></div>
         <div id="matchList"><div class="loading"><div class="spin"></div>Maçlar yükleniyor…</div></div>
       </section>
 
@@ -732,15 +740,7 @@ function matchCard(m){
   </div>`;
 }
 
-function renderFinishedToggle(){
-  const box=$("#finishedToggleRow");
-  const finCount=matches.filter(m=>m.stage===curStage && m.finished).length;
-  if(!finCount){ box.innerHTML=""; return; }
-  box.innerHTML=`<button class="pill toggle-fin ${showFinished?"on":""}" id="finToggleBtn">
-    ${showFinished?"✓ Sadece henüz oynanmış maçları göster":"🏁 Tamamlanan maçları da göster ("+finCount+")"}
-  </button>`;
-  $("#finToggleBtn").onclick=()=>{ showFinished=!showFinished; renderFinishedToggle(); renderMatches(); };
-}
+function renderFinishedToggle(){ /* merged into renderSortFilters */ }
 
 function renderMatches(){
   const list=$("#matchList");
@@ -760,7 +760,7 @@ function renderMatches(){
   if(!ms.length){
     const allInStage=matches.filter(m=>m.stage===curStage);
     const msg = !showFinished && allInStage.every(m=>m.finished)
-      ? `<div class="empty">Bu sekmedeki tüm maçlar bitti.<br><small style="opacity:.6">Sonuçları görmek için yukarıdaki "Biten maçları göster" butonuna tıkla.</small></div>`
+      ? `<div class="empty">Bu sekmedeki tüm maçlar bitti.<br><small style="opacity:.6">Sonuçları görmek için "Tamamlananları göster" geçişini kullan.</small></div>`
       : `<div class="empty">Bu sekmede maç yok.</div>`;
     list.innerHTML=msg; return;
   }
@@ -778,18 +778,29 @@ function renderStageFilters(){
   $("#stageFilters").innerHTML = STAGES.filter(s=>present.has(s.k)).map(s=>
     `<button class="pill ${s.k===curStage?"on":""}" data-stage="${s.k}">${s.label}</button>`).join("");
   $("#stageFilters").querySelectorAll(".pill").forEach(b=>b.onclick=()=>{
-    curStage=b.dataset.stage; curGroup="ALL"; renderStageFilters(); renderGroupFilters(); renderSortFilters(); renderFinishedToggle(); renderMatches();
+    curStage=b.dataset.stage; curGroup="ALL"; renderStageFilters(); renderGroupFilters(); renderSortFilters(); renderMatches();
   });
 }
 function renderSortFilters(){
   const box=$("#sortFilters");
   if(curStage!=="group"){ box.innerHTML=""; return; }
+  const finCount=matches.filter(m=>m.stage===curStage && m.finished).length;
+  const toggleHTML = finCount ? `
+    <span class="fin-toggle-wrap">
+      <button class="fin-toggle ${showFinished?"on":""}" id="finToggleBtn">
+        <span class="tog-track"><span class="tog-thumb"></span></span>
+        ${showFinished?"Tamamlananları gizle":"Tamamlananları göster"}
+      </button>
+    </span>` : "";
   box.innerHTML = `
     <button class="pill ${sortMode==="date"?"on":""}" data-sort="date">📅 Tarihe göre</button>
-    <button class="pill ${sortMode==="group"?"on":""}" data-sort="group">🔤 Gruba göre</button>`;
-  box.querySelectorAll(".pill").forEach(b=>b.onclick=()=>{
+    <button class="pill ${sortMode==="group"?"on":""}" data-sort="group">🔤 Gruba göre</button>
+    ${toggleHTML}`;
+  box.querySelectorAll(".pill[data-sort]").forEach(b=>b.onclick=()=>{
     sortMode=b.dataset.sort; renderSortFilters(); renderMatches();
   });
+  const ftb=$("#finToggleBtn");
+  if(ftb) ftb.onclick=()=>{ showFinished=!showFinished; renderSortFilters(); renderMatches(); };
 }
 function renderGroupFilters(){
   const box=$("#groupFilters");
@@ -1015,7 +1026,7 @@ async function adminSave(id,btn){
     if(error) throw error;
     Object.assign(matches.find(m=>m.id===id),patch);
     band("Maç güncellendi","Yönetim");
-    renderLeaderboard(); renderRibbon(); renderMatches(); renderAdmin(); renderFinishedToggle();
+    renderLeaderboard(); renderRibbon(); renderMatches(); renderAdmin(); renderSortFilters();
   }catch(err){ band((err&&err.message)||"Hata","Yönetim",true); }
   finally{ btn.disabled=false; btn.textContent="Kaydet"; }
 }
@@ -1031,7 +1042,7 @@ function switchTab(t){
   if(t==="admin"){ renderAdminFilters(); renderAdmin(); }
 }
 function renderAll(){
-  renderRibbon(); renderStageFilters(); renderGroupFilters(); renderSortFilters(); renderFinishedToggle(); renderMatches(); renderLeaderboard();
+  renderRibbon(); renderStageFilters(); renderGroupFilters(); renderSortFilters(); renderMatches(); renderLeaderboard();
 }
 async function enterApp(){
   show($("#authScreen"),false); show($("#setupScreen"),false); show($("#appScreen"),true);
