@@ -262,6 +262,38 @@ nav.tabs button:hover{color:var(--ink)}
 .scoretable tbody tr:last-child td{border-bottom:none}
 .scoretable tbody tr:last-child td:first-child{color:var(--gold2)}
 
+/* ===== GRAFİK ===== */
+.chart-wrap{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:16px;padding:16px 14px 10px}
+.chart-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:2px 4px 12px}
+.chart-head h2{font-size:20px;margin:0}
+.chart-head .sub{font-size:12px;color:var(--muted);font-weight:600}
+.chart-area{position:relative;width:100%}
+.chart-area svg{display:block;width:100%;height:auto;overflow:visible}
+.gridline{stroke:var(--line);stroke-width:1}
+.axislbl{fill:var(--muted);font-size:10px;font-weight:700;font-family:'Plus Jakarta Sans'}
+.pline{fill:none;stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round;
+  filter:drop-shadow(0 2px 5px rgba(0,0,0,.35));transition:opacity .2s,stroke-width .2s}
+.pdot{transition:opacity .2s}
+.endlbl{font-family:'Anton';font-size:12px;letter-spacing:.5px}
+.pseries.dim .pline{opacity:.12}
+.pseries.dim .pdot{opacity:.12}
+.pseries.dim .endlbl{opacity:.12}
+.hoverline{stroke:var(--gold);stroke-width:1;stroke-dasharray:4 4;opacity:0;pointer-events:none}
+.chart-tip{position:absolute;pointer-events:none;z-index:5;background:#0a1812;border:1px solid var(--line2);
+  border-radius:10px;padding:9px 11px;font-size:12px;min-width:140px;box-shadow:0 14px 34px rgba(0,0,0,.55);
+  opacity:0;transition:opacity .12s;transform:translate(-50%,0)}
+.chart-tip .d{font-weight:800;color:var(--gold2);font-size:11px;letter-spacing:.5px;margin-bottom:6px}
+.chart-tip .r{display:flex;align-items:center;gap:7px;padding:2px 0;font-weight:600;color:#cbe0d2}
+.chart-tip .r i{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
+.chart-tip .r .v{margin-left:auto;font-weight:800;color:var(--ink)}
+.chart-legend{display:flex;flex-wrap:wrap;gap:7px;margin:12px 4px 4px}
+.leg-item{display:inline-flex;align-items:center;gap:7px;background:var(--panel);border:1px solid var(--line);
+  border-radius:999px;padding:5px 11px 5px 8px;font-size:12.5px;font-weight:700;color:#cbe0d2;cursor:pointer;transition:all .15s}
+.leg-item:hover{border-color:var(--line2)}
+.leg-item.off{opacity:.4}
+.leg-item i{width:11px;height:11px;border-radius:50%;flex:0 0 auto}
+.leg-item b{color:var(--gold2);font-weight:800;margin-left:2px}
+
 /* ===== ADMIN ===== */
 .admin .arow{display:grid;grid-template-columns:1fr 70px 18px 70px 90px;gap:8px;align-items:center;
   background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px}
@@ -412,6 +444,7 @@ nav.tabs button:hover{color:var(--ink)}
     <button data-tab="mypicks">Tahminlerim</button>
     <button data-tab="how">Nasıl Oynanır</button>
     <button data-tab="leaderboard">Lider Tablosu</button>
+    <button data-tab="chart">Grafik</button>
     <button data-tab="admin" id="adminTab" class="hidden">Yönetim</button>
   </nav>
 
@@ -471,6 +504,11 @@ nav.tabs button:hover{color:var(--ink)}
 
       <!-- LEADERBOARD TAB -->
       <section id="tab-leaderboard" class="hidden"></section>
+
+      <!-- CHART TAB -->
+      <section id="tab-chart" class="hidden">
+        <div id="chartBox"><div class="loading"><div class="spin"></div>Grafik hazırlanıyor…</div></div>
+      </section>
 
       <!-- ADMIN -->
       <section id="tab-admin" class="admin hidden">
@@ -1147,26 +1185,179 @@ async function adminSave(id,btn){
     if(error) throw error;
     Object.assign(matches.find(m=>m.id===id),patch);
     band("Maç güncellendi","Yönetim");
-    renderLeaderboard(); renderRibbon(); renderMatches(); renderMyPicks(); renderAdmin(); renderSortFilters();
+    renderLeaderboard(); renderRibbon(); renderMatches(); renderMyPicks(); renderAdmin(); renderSortFilters(); renderChart();
   }catch(err){ band((err&&err.message)||"Hata","Yönetim",true); }
   finally{ btn.disabled=false; btn.textContent="Kaydet"; }
 }
 
 /* ====================================================================
-   13) TAB yönetimi + boot
+   12b) GRAFİK — puan gidişatı (maç tarihlerinden türetilir, snapshot yok)
    ==================================================================== */
+const PALETTE = ['#f5c542','#2bd575','#46b6ff','#ff5a3c','#b07cff','#ff7eb6','#5ad1c8','#ffa94d'];
+let playerColors = {};
+function assignColors(){
+  const ps=profiles.filter(p=>!isHiddenUser(p.username)).slice().sort((a,b)=>a.username.localeCompare(b.username));
+  playerColors={}; ps.forEach((p,i)=>playerColors[p.id]=PALETTE[i%PALETTE.length]);
+}
+const CHART_START="2026-06-24";  // ilk puanların kazanıldığı gün
+// Bir maçın "gün"ü: Almanya saatiyle (kickoff - 8 saat) tarihi → gece yarısı–08:00 arası maçlar önceki güne sayılır
+function matchDayKey(iso){
+  const shifted=new Date(new Date(iso).getTime()-8*3600*1000);
+  const p=new Intl.DateTimeFormat("en-CA",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(shifted);
+  const g=t=>p.find(x=>x.type===t).value;
+  return `${g("year")}-${g("month")}-${g("day")}`;
+}
+function shortDay(key){
+  const d=new Date(key+"T12:00:00Z");
+  return d.toLocaleDateString("tr-TR",{day:"2-digit",month:"short"});
+}
+function computeProgression(){
+  const players=profiles.filter(p=>!isHiddenUser(p.username)).slice()
+    .sort((a,b)=>a.username.localeCompare(b.username));
+  const fin=matches.filter(m=>m.finished && new Date(m.kickoff)>=CUTOFF);
+  const predBy={}; predsAll.forEach(p=>{ predBy[p.user_id+"|"+p.match_id]=p; });
+  const dayInc={}; let maxDay=CHART_START;
+  fin.forEach(m=>{
+    let dk=matchDayKey(m.kickoff); if(dk<CHART_START) dk=CHART_START;
+    if(dk>maxDay) maxDay=dk;
+    players.forEach(pl=>{
+      const g=grade(predBy[pl.id+"|"+m.id]||null,m); const pts=g?g.pts:0;
+      (dayInc[dk]||(dayInc[dk]={}))[pl.id]=((dayInc[dk]||{})[pl.id]||0)+pts;
+    });
+  });
+  // CHART_START → maxDay arası sürekli günler
+  const days=[]; let d=new Date(CHART_START+"T00:00:00Z"); const end=new Date(maxDay+"T00:00:00Z");
+  while(d<=end){ days.push(d.toISOString().slice(0,10)); d=new Date(d.getTime()+86400000); }
+  const series=players.map(pl=>{
+    let cum=0; const pts=days.map(day=>{ cum+=(dayInc[day]&&dayInc[day][pl.id])||0; return cum; });
+    return {id:pl.id,name:pl.username,color:playerColors[pl.id]||"#9bb",pts};
+  });
+  const hasData=fin.length>0;
+  return {days,series,hasData};
+}
+
+let chartFocus=null; // odaklanılan oyuncu id'si (legend tıklayınca)
+function renderChart(){
+  const box=$("#chartBox"); if(!box) return;
+  assignColors();
+  const {days,series,hasData}=computeProgression();
+  if(!hasData){
+    box.innerHTML=`<div class="empty">Henüz puan kazanılan maç yok.<br><small style="opacity:.6">24 Haziran'dan itibaren maçlar bitince grafik dolmaya başlar.</small></div>`;
+    return;
+  }
+  // ölçek
+  const W=720,H=380, padL=40,padR=54,padT=14,padB=30;
+  const innerW=W-padL-padR, innerH=H-padT-padB;
+  const n=days.length;
+  let yMax=0; series.forEach(s=>s.pts.forEach(v=>{ if(v>yMax)yMax=v; }));
+  if(yMax<=0) yMax=10;
+  const step=niceStep(yMax/4); const yTop=Math.ceil(yMax/step)*step || step;
+  const X=i=> n<=1 ? padL+innerW/2 : padL + innerW*i/(n-1);
+  const Y=v=> padT + innerH*(1 - v/yTop);
+
+  // y gridlines
+  let grid="",ylbl="";
+  for(let v=0; v<=yTop+0.5; v+=step){
+    const y=Y(v);
+    grid+=`<line class="gridline" x1="${padL}" y1="${y.toFixed(1)}" x2="${padL+innerW}" y2="${y.toFixed(1)}"/>`;
+    ylbl+=`<text class="axislbl" x="${padL-7}" y="${(y+3).toFixed(1)}" text-anchor="end">${v}</text>`;
+  }
+  // x labels (en fazla ~8)
+  const lblEvery=Math.max(1,Math.ceil(n/8)); let xlbl="";
+  days.forEach((dk,i)=>{ if(i%lblEvery===0 || i===n-1){
+    xlbl+=`<text class="axislbl" x="${X(i).toFixed(1)}" y="${H-padB+16}" text-anchor="middle">${esc(shortDay(dk))}</text>`;
+  }});
+  // çizgiler + noktalar + uç etiketleri
+  const ranked=[...series].sort((a,b)=> b.pts[n-1]-a.pts[n-1]); // uç etiket çakışmasını azaltmak için
+  let lines="";
+  series.forEach(s=>{
+    const pathPts=s.pts.map((v,i)=>`${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(" ");
+    const dots=s.pts.map((v,i)=> n<=1||i===n-1||i%lblEvery===0
+      ? `<circle class="pdot" cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="${i===n-1?4:2.6}" fill="${s.color}"/>` : "").join("");
+    const endY=Y(s.pts[n-1]);
+    lines+=`<g class="pseries" data-id="${s.id}">
+      <polyline class="pline" points="${pathPts}" stroke="${s.color}"/>
+      ${dots}
+      <text class="endlbl" x="${(padL+innerW+6).toFixed(1)}" y="${(endY+4).toFixed(1)}" fill="${s.color}">${s.pts[n-1]}</text>
+    </g>`;
+  });
+
+  const legend=series.slice().sort((a,b)=>b.pts[n-1]-a.pts[n-1]).map(s=>
+    `<span class="leg-item" data-id="${s.id}"><i style="background:${s.color}"></i>${esc(s.name)} <b>${s.pts[n-1]}</b></span>`).join("");
+
+  box.innerHTML=`
+    <div class="chart-wrap">
+      <div class="chart-head"><h2>📈 Puan Gidişatı</h2>
+        <span class="sub">24 Haziran → 19 Temmuz · her oyuncunun günlük toplam puanı</span></div>
+      <div class="chart-area" id="chartArea">
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
+          ${grid}${ylbl}${xlbl}
+          <line class="hoverline" id="hoverLine" y1="${padT}" y2="${padT+innerH}"/>
+          ${lines}
+        </svg>
+        <div class="chart-tip" id="chartTip"></div>
+      </div>
+      <div class="chart-legend" id="chartLegend">${legend}</div>
+    </div>`;
+
+  // çizgi çizim animasyonu
+  box.querySelectorAll(".pline").forEach(pl=>{
+    const len=pl.getTotalLength ? pl.getTotalLength() : 0;
+    if(len){ pl.style.strokeDasharray=len; pl.style.strokeDashoffset=len;
+      pl.getBoundingClientRect(); pl.style.transition="stroke-dashoffset 1.1s ease"; pl.style.strokeDashoffset=0; }
+  });
+
+  // legend tıkla → odakla
+  box.querySelectorAll(".leg-item").forEach(it=>it.onclick=()=>{
+    const id=it.dataset.id;
+    chartFocus = (chartFocus===id)?null:id;
+    box.querySelectorAll(".leg-item").forEach(x=>x.classList.toggle("off", chartFocus && x.dataset.id!==chartFocus));
+    box.querySelectorAll(".pseries").forEach(g=>g.classList.toggle("dim", chartFocus && g.dataset.id!==chartFocus));
+  });
+
+  // hover → dikey çizgi + tooltip
+  const area=$("#chartArea"), tip=$("#chartTip"), hl=$("#hoverLine"), svg=area.querySelector("svg");
+  function onMove(ev){
+    const r=svg.getBoundingClientRect();
+    const px=( (ev.touches?ev.touches[0].clientX:ev.clientX) - r.left)/r.width*W;
+    let i=Math.round((px-padL)/(innerW/(Math.max(1,n-1))));
+    i=Math.max(0,Math.min(n-1,i)); if(isNaN(i)) return;
+    const xPix=X(i);
+    hl.setAttribute("x1",xPix); hl.setAttribute("x2",xPix); hl.style.opacity="1";
+    const rows=series.map(s=>({name:s.name,color:s.color,v:s.pts[i]})).sort((a,b)=>b.v-a.v);
+    tip.innerHTML=`<div class="d">${esc(shortDay(days[i]))}</div>`+rows.map(r=>
+      `<div class="r"><i style="background:${r.color}"></i>${esc(r.name)}<span class="v">${r.v}</span></div>`).join("");
+    tip.style.opacity="1";
+    const leftPct=(xPix/W)*100;
+    tip.style.left=Math.max(8,Math.min(92,leftPct))+"%";
+    tip.style.top="6px";
+  }
+  function onLeave(){ hl.style.opacity="0"; tip.style.opacity="0"; }
+  area.onmousemove=onMove; area.onmouseleave=onLeave;
+  area.ontouchstart=onMove; area.ontouchmove=onMove; area.ontouchend=onLeave;
+}
+function niceStep(x){
+  if(x<=0) return 10;
+  const p=Math.pow(10,Math.floor(Math.log10(x))); const f=x/p;
+  const nf = f<=1?1 : f<=2?2 : f<=5?5 : 10;
+  return Math.max(10, nf*p);
+}
+
+
 function switchTab(t){
   document.querySelectorAll("nav.tabs button").forEach(b=>b.classList.toggle("on",b.dataset.tab===t));
   show($("#tab-matches"),t==="matches");
   show($("#tab-mypicks"),t==="mypicks");
   show($("#tab-how"),t==="how");
   show($("#tab-leaderboard"),t==="leaderboard");
+  show($("#tab-chart"),t==="chart");
   show($("#tab-admin"),t==="admin");
   // mobilde Lider Tablosu sekmesindeyken sağdaki kopya tabloyu gizle
   $("#appScreen").classList.toggle("lb-tab", t==="leaderboard");
   if(t==="admin"){ renderAdminFilters(); renderAdmin(); }
   if(t==="leaderboard"){ renderLeaderboardTab(); }
   if(t==="mypicks"){ renderMyPicks(); }
+  if(t==="chart"){ renderChart(); }
 }
 function renderLeaderboardTab(){
   const rows=profiles.filter(p=>!isHiddenUser(p.username)).map(p=>({...p,...userTotals(p.id)}))
@@ -1191,8 +1382,9 @@ function renderLeaderboardTab(){
 }
 
 function renderAll(){
+  assignColors();
   renderRibbon(); renderStageFilters(); renderGroupFilters(); renderSortFilters();
-  renderMatches(); renderMyPicks(); renderLeaderboard(); renderLeaderboardTab();
+  renderMatches(); renderMyPicks(); renderLeaderboard(); renderLeaderboardTab(); renderChart();
 }
 async function enterApp(){
   show($("#authScreen"),false); show($("#setupScreen"),false); show($("#appScreen"),true);
