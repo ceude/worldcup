@@ -129,6 +129,15 @@ nav.tabs button:hover{color:var(--ink)}
 @media(max-width:900px){.col-right{position:static}}
 /* mobilde Lider Tablosu sekmesindeyken sağ kolon tekrar etmesin */
 @media(max-width:900px){#appScreen.lb-tab .col-right{display:none}}
+/* masaüstünde lider tablosu uzayınca puanlama kartı kaybolmasın: tabloya iç kaydırma ver */
+@media(min-width:901px){
+  #leaderboard{max-height:calc(100vh - 380px);min-height:150px;overflow-y:auto;
+    scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
+  #leaderboard::-webkit-scrollbar{width:8px}
+  #leaderboard::-webkit-scrollbar-track{background:transparent}
+  #leaderboard::-webkit-scrollbar-thumb{background:var(--line2);border-radius:8px;border:2px solid transparent;background-clip:content-box}
+  #leaderboard::-webkit-scrollbar-thumb:hover{background:var(--muted);background-clip:content-box}
+}
 
 /* ===== FILTER PILLS ===== */
 .filters{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
