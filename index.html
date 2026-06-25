@@ -531,14 +531,7 @@ nav.tabs button:hover{color:var(--ink)}
       </div>
       <div class="panel">
         <div class="ph"><span class="ico">🎯</span><h3>Puanlama</h3></div>
-        <div class="scoringcard">
-          <div class="row"><div class="pts p30">30</div>
-            <div class="d"><b>Sonucu bil</b> — kazanan / beraberlik doğru</div></div>
-          <div class="row"><div class="pts p100">100</div>
-            <div class="d"><b>Skoru tam bil</b> — 30 + 70 bonus</div></div>
-          <div style="font-size:11.5px;color:var(--muted);font-weight:600;padding:10px 0 2px;line-height:1.45">
-            Bu puanlar grup aşaması içindir. Her turda puan artar (Son 16'da 50 / 140, finalde 100 / 200). Ayrıntı için <b style="color:var(--gold2)">Nasıl Oynanır</b> sekmesine bak.</div>
-        </div>
+        <div class="scoringcard" id="scoringCard"></div>
       </div>
     </aside>
   </div>
@@ -620,6 +613,10 @@ const scoringFor = stage => STAGE_SCORING[stage] || STAGE_SCORING.group;
 const STAGE_PHRASE = {
   group:"Grup aşamasında", r32:"Son 32 turunda", r16:"Son 16 turunda",
   qf:"Çeyrek finalde", sf:"Yarı finalde", third:"Üçüncülük maçında", final:"Finalde"
+};
+const STAGE_NOUN = {
+  group:"Grup aşaması", r32:"Son 32 turu", r16:"Son 16 turu",
+  qf:"Çeyrek final", sf:"Yarı final", third:"Üçüncülük maçı", final:"Final"
 };
 
 const trName = e => TR[e] || e;
@@ -859,8 +856,20 @@ function matchCard(m){
   </div>`;
 }
 
+function renderScoringCard(){
+  const box=$("#scoringCard"); if(!box) return;
+  const sc=scoringFor(curStage), bonus=sc.exact-sc.outc, noun=STAGE_NOUN[curStage]||"Bu tur";
+  box.innerHTML=`
+    <div class="row"><div class="pts p30">${sc.outc}</div>
+      <div class="d"><b>Sonucu bil</b> — kazanan / beraberlik doğru</div></div>
+    <div class="row"><div class="pts p100">${sc.exact}</div>
+      <div class="d"><b>Skoru tam bil</b> — ${sc.outc} + ${bonus} bonus</div></div>
+    <div style="font-size:11.5px;color:var(--muted);font-weight:600;padding:10px 0 2px;line-height:1.45">
+      <b style="color:var(--gold2)">${esc(noun)}</b> puanlaması gösteriliyor (seçili sekmeye göre). Tüm turlar için <b style="color:var(--gold2)">Nasıl Oynanır</b> sekmesine bak.</div>`;
+}
 function renderStageInfo(){
   const box=$("#stageInfo"); if(!box) return;
+  renderScoringCard();
   const sc=scoringFor(curStage), bonus=sc.exact-sc.outc;
   const phrase=STAGE_PHRASE[curStage]||"Bu turda";
   box.innerHTML=`<div class="stageinfo">
