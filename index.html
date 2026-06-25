@@ -249,6 +249,18 @@ nav.tabs button:hover{color:var(--ink)}
 .bigscore .b .x{font-size:13px;color:var(--muted);line-height:1.5}
 .howto ul{padding-left:18px;line-height:1.8;color:#cbe0d2;font-size:14px}
 .note{background:#10201a;border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:10px;padding:13px 15px;font-size:13.5px;color:#cbe0d2;margin-top:14px}
+.stageinfo{background:linear-gradient(180deg,#10241a,#0c1d15);border:1px solid var(--line);
+  border-left:3px solid var(--gold);border-radius:12px;padding:12px 15px;margin:0 0 16px;font-size:13.5px;color:#dceae0;line-height:1.5}
+.stageinfo b{color:var(--gold2)}
+.stageinfo .sub{margin-top:6px;font-size:12px;color:var(--muted);font-weight:600}
+.scoretable{width:100%;border-collapse:collapse;margin:6px 0 4px;font-size:14px}
+.scoretable th,.scoretable td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line)}
+.scoretable thead th{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);font-weight:800}
+.scoretable td:first-child{font-weight:700;color:#cbe0d2}
+.scoretable td:nth-child(2){color:var(--outc);font-weight:800;font-family:'Anton';letter-spacing:1px}
+.scoretable td:nth-child(3){color:var(--ok);font-weight:800;font-family:'Anton';letter-spacing:1px}
+.scoretable tbody tr:last-child td{border-bottom:none}
+.scoretable tbody tr:last-child td:first-child{color:var(--gold2)}
 
 /* ===== ADMIN ===== */
 .admin .arow{display:grid;grid-template-columns:1fr 70px 18px 70px 90px;gap:8px;align-items:center;
@@ -409,6 +421,7 @@ nav.tabs button:hover{color:var(--ink)}
       <section id="tab-matches">
         <div class="filters" id="stageFilters"></div>
         <div class="filters" id="sortFilters"></div>
+        <div id="stageInfo"></div>
         <div id="matchList"><div class="loading"><div class="spin"></div>Maçlar yükleniyor…</div></div>
       </section>
 
@@ -425,13 +438,29 @@ nav.tabs button:hover{color:var(--ink)}
 
         <div class="bigscore">
           <div class="b a"><div class="n">30</div><div class="t">Sonucu bildin</div>
-            <div class="x">Kazananı ya da beraberliği doğru tahmin edersen 30 puan. Skoru tutturmana gerek yok.</div></div>
+            <div class="x">Kazananı ya da beraberliği doğru tahmin edersen puan alırsın (grup aşamasında 30). Skoru tutturmana gerek yok.</div></div>
           <div class="b b"><div class="n">30+70</div><div class="t">Skoru tam bildin</div>
-            <div class="x">Hem sonucu hem de net skoru bilirsen 30 puanın üstüne 70 puan daha → toplam <b style="color:var(--ink)">100 puan</b>.</div></div>
+            <div class="x">Hem sonucu hem net skoru bilirsen sonuç puanının üstüne bonus eklenir (grupta 30+70 = <b style="color:var(--ink)">100</b>).</div></div>
         </div>
+
+        <h2>Turlara Göre Puanlama</h2>
+        <p class="lead" style="font-size:14px">Turlar ilerledikçe puanlar artar. <b style="color:var(--ink)">Sonuç</b> = galip/beraberlik doğru; <b style="color:var(--ink)">Skor</b> = net skoru tam bilmek (sonuç puanı + bonus).</p>
+        <table class="scoretable">
+          <thead><tr><th>Tur</th><th>Sonuç</th><th>Skor (tam)</th></tr></thead>
+          <tbody>
+            <tr><td>Grup aşaması</td><td>30</td><td>30+70 = 100</td></tr>
+            <tr><td>Son 32</td><td>40</td><td>40+80 = 120</td></tr>
+            <tr><td>Son 16</td><td>50</td><td>50+90 = 140</td></tr>
+            <tr><td>Çeyrek final</td><td>60</td><td>60+100 = 160</td></tr>
+            <tr><td>Yarı final</td><td>80</td><td>80+100 = 180</td></tr>
+            <tr><td>Üçüncülük</td><td>80</td><td>80+100 = 180</td></tr>
+            <tr><td>Final</td><td>100</td><td>100+100 = 200</td></tr>
+          </tbody>
+        </table>
 
         <h2>Kurallar</h2>
         <ul>
+          <li>Tüm tahminler <b style="color:var(--ink)">90 dakikalık normal süre</b> sonucuna göre yapılır; uzatma ve penaltıların tahminlere etkisi yoktur.</li>
           <li>Tahminler <b style="color:var(--ink)">Almanya saati</b> (Europe/Berlin) ile çalışır. Maç saati başlayınca skor değiştirilemez.</li>
           <li>İki takımı da belli olmayan maçlara (örn. henüz oynanmamış Son 16) tahmin yapılamaz — takımlar belli olunca açılır.</li>
           <li>Başkalarının tahminlerini ancak maç başladıktan sonra görebilirsin.</li>
@@ -469,6 +498,8 @@ nav.tabs button:hover{color:var(--ink)}
             <div class="d"><b>Sonucu bil</b> — kazanan / beraberlik doğru</div></div>
           <div class="row"><div class="pts p100">100</div>
             <div class="d"><b>Skoru tam bil</b> — 30 + 70 bonus</div></div>
+          <div style="font-size:11.5px;color:var(--muted);font-weight:600;padding:10px 0 2px;line-height:1.45">
+            Bu puanlar grup aşaması içindir. Her turda puan artar (Son 16'da 50 / 140, finalde 100 / 200). Ayrıntı için <b style="color:var(--gold2)">Nasıl Oynanır</b> sekmesine bak.</div>
         </div>
       </div>
     </aside>
@@ -536,6 +567,23 @@ const STAGES = [
 ];
 const STAGE_LABEL = Object.fromEntries(STAGES.map(s=>[s.k,s.label]));
 
+// Tur bazlı puanlama: outc = sonuç puanı, exact = tam skor puanı (outc + bonus)
+const STAGE_SCORING = {
+  group:{outc:30, exact:100},
+  r32:  {outc:40, exact:120},
+  r16:  {outc:50, exact:140},
+  qf:   {outc:60, exact:160},
+  sf:   {outc:80, exact:180},
+  third:{outc:80, exact:180},
+  final:{outc:100,exact:200}
+};
+const scoringFor = stage => STAGE_SCORING[stage] || STAGE_SCORING.group;
+// Açıklama cümlesi için doğal tur ifadesi
+const STAGE_PHRASE = {
+  group:"Grup aşamasında", r32:"Son 32 turunda", r16:"Son 16 turunda",
+  qf:"Çeyrek finalde", sf:"Yarı finalde", third:"Üçüncülük maçında", final:"Finalde"
+};
+
 const trName = e => TR[e] || e;
 const flagUrl = e => FLAG[e] ? `https://flagcdn.com/48x36/${FLAG[e]}.png` : null;
 const esc = s => (s==null?"":String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -602,10 +650,11 @@ function berlinInputToUTCISO(dtLocalStr){
 function grade(pred, m){
   if(!m.finished || m.home_score==null) return null;
   if(!pred) return {pts:0,type:"none"};
+  const sc=scoringFor(m.stage);
   const exact = pred.home===m.home_score && pred.away===m.away_score;
-  if(exact) return {pts:100,type:"exact"};
+  if(exact) return {pts:sc.exact,type:"exact"};
   const so=Math.sign(pred.home-pred.away), ao=Math.sign(m.home_score-m.away_score);
-  if(so===ao) return {pts:30,type:"outc"};
+  if(so===ao) return {pts:sc.outc,type:"outc"};
   return {pts:0,type:"bad"};
 }
 function userTotals(uid){
@@ -745,8 +794,8 @@ function matchCard(m){
     const g=grade(pred||null,m);
     const yp = pred?`<span class="yourpred">Tahminin: ${pred.home}–${pred.away}</span>`:`<span style="color:var(--muted)">Tahmin yapmadın</span>`;
     let pill="";
-    if(g.type==="exact") pill=`<span class="yp exact">SKOR TAM · +100</span>`;
-    else if(g.type==="outc") pill=`<span class="yp outc">SONUÇ · +30</span>`;
+    if(g.type==="exact") pill=`<span class="yp exact">SKOR TAM · +${g.pts}</span>`;
+    else if(g.type==="outc") pill=`<span class="yp outc">SONUÇ · +${g.pts}</span>`;
     else pill=`<span class="yp bad">0 PUAN</span>`;
     foot=`${yp}${pill}`;
   }else if(!m.team_home || !m.team_away){
@@ -772,7 +821,17 @@ function matchCard(m){
   </div>`;
 }
 
+function renderStageInfo(){
+  const box=$("#stageInfo"); if(!box) return;
+  const sc=scoringFor(curStage), bonus=sc.exact-sc.outc;
+  const phrase=STAGE_PHRASE[curStage]||"Bu turda";
+  box.innerHTML=`<div class="stageinfo">
+    <div>🎯 ${phrase} sonucu (galibiyet veya beraberlik) bilmek <b>${sc.outc} puan</b>, skoru bilmek <b>${sc.outc}+${bonus} = ${sc.exact} puan</b> kazandırır.</div>
+    <div class="sub">⏱️ Tüm tahminler 90 dakikalık normal süre sonucuna göre yapılır; uzatma ve penaltıların tahminlere etkisi yoktur.</div>
+  </div>`;
+}
 function renderMatches(){
+  renderStageInfo();
   const list=$("#matchList");
   let ms=matches.filter(m=>m.stage===curStage);
   if(curStage==="group" && curGroup!=="ALL") ms=ms.filter(m=>m.grp===curGroup);
@@ -962,7 +1021,7 @@ function openProfile(uid){
     const g=grade(pred,m);
     const cls=g.type;
     const predTxt = pred?`${pred.home}–${pred.away}`:"—";
-    const ptTxt = g.type==="exact"?"+100":g.type==="outc"?"+30":"0";
+    const ptTxt = (g.type==="exact"||g.type==="outc")?"+"+g.pts:"0";
     const stageTxt = m.grp?`Grup ${m.grp}`:(m.label||STAGE_LABEL[m.stage]);
     return `<div class="pg ${cls}">
       <div class="aa"><span class="cap">Sonuç</span>${m.home_score}–${m.away_score}</div>
