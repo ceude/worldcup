@@ -91,6 +91,7 @@ TEAM_ALIASES = {
     "czech republic": "Czechia", "czechia": "Czechia",
     "cape verde": "Cabo Verde", "cabo verde": "Cabo Verde",
     "dr congo": "DR Congo", "congo dr": "DR Congo", "democratic republic of congo": "DR Congo",
+    "democratic republic of the congo": "DR Congo", "congo democratic republic": "DR Congo",
     "south korea": "South Korea", "korea republic": "South Korea", "republic of korea": "South Korea",
     "usa": "United States", "united states": "United States", "united states of america": "United States",
     "iran": "Iran", "ir iran": "Iran",
