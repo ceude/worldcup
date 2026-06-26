@@ -1,0 +1,26 @@
+name: WC2026 Scores Sync
+
+on:
+  schedule:
+    # Her 5 dakikada bir (GitHub Actions cron, en sık 5 dk; bazen birkaç dk gecikebilir)
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}   # Actions sekmesinden elle de tetikleyebilirsin
+
+# Aynı anda iki çalışma çakışmasın
+concurrency:
+  group: scores-sync
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Skorları çek ve Supabase'e yaz
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python scripts/fetch_scores.py
