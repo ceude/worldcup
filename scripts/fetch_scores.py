@@ -20,6 +20,7 @@ gelen yapıyı gör; gerekirse aşağıdaki GETTER fonksiyonlarındaki anahtarla
 """
 
 import os, sys, json, unicodedata, urllib.request, urllib.error
+from datetime import datetime, timezone
 
 API_URL = os.environ.get("WC_API_URL", "https://worldcup26.ir/get/games")
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
@@ -27,6 +28,18 @@ SERVICE_KEY  = os.environ.get("SUPABASE_SERVICE_KEY", "")
 
 DEBUG   = "--debug" in sys.argv
 DRY_RUN = "--dry-run" in sys.argv
+DIAG    = "--diag" in sys.argv
+
+# Bu tarihten ÖNCE başlayan maçlara dokunma (elle girilmiş sonuçlar korunsun).
+# 26 Haziran 2026 00:00 Almanya saati = 25 Haziran 22:00 UTC.
+PROTECT_BEFORE = datetime(2026, 6, 25, 22, 0, 0, tzinfo=timezone.utc)
+
+def parse_dt(s):
+    if not s: return None
+    try:
+        return datetime.fromisoformat(str(s).replace("Z", "+00:00"))
+    except ValueError:
+        return None
 
 # --- API takım adlarını bizim İngilizce anahtarlarımıza eşleyen tablo ---
 # Sol: API'nin verebileceği yazımlar (küçük harf, sadeleştirilmiş). Sağ: bizim anahtar.
@@ -73,20 +86,30 @@ def g(d, *keys):
             return d[k]
     return None
 
-def get_home(game):  return g(game, "home_team","home","team_home","teamA","homeTeam","home_name")
-def get_away(game):  return g(game, "away_team","away","team_away","teamB","awayTeam","away_name")
-def get_hs(game):    return g(game, "home_score","homeScore","score_home","home_goals","homeGoals","scoreA")
-def get_as(game):    return g(game, "away_score","awayScore","score_away","away_goals","awayGoals","scoreB")
-def get_status(game):return g(game, "status","state","match_status","matchStatus","time_status")
+def get_home(game):  return g(game, "home_team_name_en","home_team","home","team_home","homeTeam")
+def get_away(game):  return g(game, "away_team_name_en","away_team","away","team_away","awayTeam")
+def get_hs(game):    return g(game, "home_score","homeScore","score_home","home_goals")
+def get_as(game):    return g(game, "away_score","awayScore","score_away","away_goals")
+def get_status(game):return g(game, "time_elapsed","status","state","match_status")
+def get_finished_flag(game): return g(game, "finished")
 
-FINISHED_WORDS = {"finished","ft","ended","full time","fulltime","completed","final","afterextra","penalties"}
-LIVE_WORDS     = {"live","inplay","in play","1h","2h","ht","first half","second half","halftime","et","playing"}
+FINISHED_WORDS = {"finished","ft","ended","full time","fulltime","completed","final","aet","afterextra","penalties","pen"}
+LIVE_WORDS     = {"live","inplay","in play","1h","2h","ht","first half","second half","halftime","half time","et","playing"}
 
-def status_kind(status):
-    s = norm(status)
-    if any(w in s for w in FINISHED_WORDS): return "finished"
-    if any(w in s for w in LIVE_WORDS):     return "live"
-    return "other"
+def is_finished(game):
+    # Önce belirgin finished bayrağı (worldcup26.ir: "TRUE"/"FALSE")
+    fl = norm(get_finished_flag(game))
+    if fl in ("true","1","yes"):  return True
+    if fl in ("false","0","no"):  return False
+    # Yoksa durum metnine bak
+    return any(w in norm(get_status(game)) for w in FINISHED_WORDS)
+
+def is_live(game):
+    if is_finished(game): return False
+    s = norm(get_status(game))
+    # Sayısal dakika (ör. "67") da canlı sayılır
+    if s and s.replace("'","").strip().isdigit(): return True
+    return any(w in s for w in LIVE_WORDS)
 
 def http_get_json(url, headers=None):
     req = urllib.request.Request(url, headers=headers or {})
@@ -127,12 +150,38 @@ def main():
 
     updated = 0
     for game in games:
-        h, a = to_our_team(get_home(game)), to_our_team(get_away(game))
+        rawh, rawa = get_home(game), get_away(game)
+        h, a = to_our_team(rawh), to_our_team(rawa)
+        fin0, live0 = is_finished(game), is_live(game)
+
+        # Teşhis: API'de canlı veya yeni biten görünen her maçı analiz et
+        if DIAG and (live0 or fin0):
+            m0 = index.get((norm(h), norm(a))) if (h and a) else None
+            reason = "OK"
+            if not h or not a: reason = f"İSİM EŞLEŞMEDİ (api: '{rawh}' / '{rawa}')"
+            elif not m0:       reason = f"SUPABASE'DE MAÇ YOK ({h} vs {a})"
+            else:
+                k0 = parse_dt(m0.get("kickoff"))
+                if k0 and k0 < PROTECT_BEFORE: reason = f"KORUMA TARİHİ ({m0.get('kickoff')})"
+            print(f"[DIAG {'CANLI' if live0 else 'BİTTİ'}] {rawh} {get_hs(game)}-{get_as(game)} {rawa} | time_elapsed={get_status(game)!r} -> {reason}")
+
         if not h or not a:
             continue
         m = index.get((norm(h), norm(a)))
         if not m:
             continue
+
+        # Koruma: 26 Haziran öncesi (elle girilmiş) maçlara hiç dokunma
+        k = parse_dt(m.get("kickoff"))
+        if k and k < PROTECT_BEFORE:
+            continue
+
+        fin  = is_finished(game)
+        live = is_live(game)
+        # Sadece canlı ya da bitmiş maçlara dokun; başlamamışı atla (yoksa 0-0 "canlı" sanılır)
+        if not fin and not live:
+            continue
+
         hs, as_ = get_hs(game), get_as(game)
         if hs is None or as_ is None:
             continue
@@ -140,14 +189,12 @@ def main():
             hs, as_ = int(hs), int(as_)
         except (TypeError, ValueError):
             continue
-        kind = status_kind(get_status(game))
-        finished = (kind == "finished")
 
         # Değişmemişse atla
-        if m.get("home_score") == hs and m.get("away_score") == as_ and bool(m.get("finished")) == finished:
+        if m.get("home_score") == hs and m.get("away_score") == as_ and bool(m.get("finished")) == fin:
             continue
-        patch = {"home_score": hs, "away_score": as_, "finished": finished}
-        tag = "BİTTİ" if finished else ("CANLI" if kind == "live" else "?")
+        patch = {"home_score": hs, "away_score": as_, "finished": fin}
+        tag = "BİTTİ" if fin else "CANLI"
         print(f"[{tag}] {h} {hs}-{as_} {a}  (match id {m['id']})")
         if not DRY_RUN:
             supabase("PATCH", f"matches?id=eq.{m['id']}", patch)
