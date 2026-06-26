@@ -1102,13 +1102,18 @@ function closeModal(){ $("#modal").classList.remove("show"); }
 function ribTime(iso){
   return new Date(iso).toLocaleTimeString("tr-TR",{timeZone:TZ,hour:"2-digit",minute:"2-digit"});
 }
+// Almanya takvim günü (YYYY-MM-DD) — bant için dün/bugün/yarın bununla belirlenir
+function berlinCalKey(d){
+  const p=new Intl.DateTimeFormat("en-CA",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date(d));
+  const g=t=>p.find(x=>x.type===t).value;
+  return `${g("year")}-${g("month")}-${g("day")}`;
+}
 function renderRibbon(){
-  // Maç günü: Almanya saatiyle (kickoff - 8s) tarihi → gece maçları o akşamın gününe sayılır
-  const todayK = matchDayKey(new Date());
-  const yestK  = matchDayKey(new Date(Date.now()-86400000));
-  const tomK   = matchDayKey(new Date(Date.now()+86400000));
+  const todayK = berlinCalKey(Date.now());
+  const yestK  = berlinCalKey(Date.now()-86400000);
+  const tomK   = berlinCalKey(Date.now()+86400000);
   const withTeams = matches.filter(m=>m.team_home && m.team_away);
-  const byKey = k => withTeams.filter(m=>matchDayKey(m.kickoff)===k)
+  const byKey = k => withTeams.filter(m=>berlinCalKey(m.kickoff)===k)
                               .sort((a,b)=>new Date(a.kickoff)-new Date(b.kickoff));
   const yest=byKey(yestK), today=byKey(todayK), tom=byKey(tomK);
 
