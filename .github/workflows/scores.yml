@@ -1,16 +1,11 @@
 name: WC2026 Scores Sync
-
 on:
   schedule:
-    # Her 5 dakikada bir (GitHub Actions cron, en sık 5 dk; bazen birkaç dk gecikebilir)
     - cron: "*/5 * * * *"
-  workflow_dispatch: {}   # Actions sekmesinden elle de tetikleyebilirsin
-
-# Aynı anda iki çalışma çakışmasın
+  workflow_dispatch: {}
 concurrency:
   group: scores-sync
   cancel-in-progress: true
-
 jobs:
   sync:
     runs-on: ubuntu-latest
@@ -23,4 +18,4 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-          run: python scripts/fetch_scores.py --dry-run
+        run: python scripts/fetch_scores.py --dry-run
