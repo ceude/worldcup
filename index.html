@@ -222,17 +222,18 @@ nav.tabs button:hover{color:var(--ink)}
 
 /* ===== AÇILIŞ POP-UP (eksik tahmin / istatistik) ===== */
 #popup{position:fixed;inset:0;z-index:95;background:rgba(4,10,7,.72);backdrop-filter:blur(4px);
-  display:none;align-items:center;justify-content:center;padding:18px}
+  display:none;align-items:center;justify-content:center;padding:16px;
+  padding:calc(16px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom))}
 #popup.show{display:flex}
-.pcard{width:100%;max-width:440px;max-height:86vh;overflow-y:auto;position:relative;
-  background:linear-gradient(180deg,#11271b,#0a1812);border:1px solid var(--line2);border-radius:20px;
+.pcard{width:100%;max-width:440px;max-height:86vh;max-height:86dvh;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  position:relative;background:linear-gradient(180deg,#11271b,#0a1812);border:1px solid var(--line2);border-radius:20px;
   padding:26px 22px 20px;box-shadow:0 30px 80px rgba(0,0,0,.6);text-align:center;
   scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
 .pcard::-webkit-scrollbar{width:8px}
 .pcard::-webkit-scrollbar-thumb{background:var(--line2);border-radius:8px;border:2px solid transparent;background-clip:content-box}
-.pcard .x{position:absolute;top:12px;right:12px;background:#13261c;border:1px solid var(--line2);color:var(--ink);
-  width:32px;height:32px;border-radius:9px;font-size:16px}
-.pop-ic{font-size:40px;line-height:1;margin:4px 0 6px}
+.pcard .x{position:sticky;top:0;float:right;margin:-8px -6px 0 0;background:#13261c;border:1px solid var(--line2);color:var(--ink);
+  width:36px;height:36px;border-radius:9px;font-size:17px;z-index:3;flex:0 0 auto}
+.pop-ic{font-size:40px;line-height:1;margin:0 0 6px;clear:both}
 .pop-h{font-size:21px;margin:0 0 8px;line-height:1.1}
 .pop-p{font-size:13.5px;color:#cbe0d2;line-height:1.5;margin:0 0 14px}
 .pop-p b{color:var(--gold2)}
@@ -241,10 +242,13 @@ nav.tabs button:hover{color:var(--ink)}
 .pmatch-list{text-align:left;margin-bottom:16px}
 .pmatch{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--panel);
   border:1px solid var(--line);border-radius:11px;padding:10px 13px;margin-bottom:7px}
+.pmatch .pm-l{display:flex;flex-direction:column;gap:2px;min-width:0}
 .pmatch .pm-t{font-weight:700;font-size:14px}
+.pmatch .pm-s{font-size:10.5px;color:var(--gold2);font-weight:800;letter-spacing:.5px;text-transform:uppercase;opacity:.85}
 .pmatch .pm-d{font-size:11.5px;color:var(--muted);font-weight:700;white-space:nowrap}
-.pop-btn{width:100%;height:46px;border:none;border-radius:12px;font-weight:800;font-size:14.5px;
-  background:linear-gradient(160deg,var(--gold),#d9a91f);color:#241400;margin-top:4px}
+.pop-btn{position:sticky;bottom:0;width:100%;height:46px;border:none;border-radius:12px;font-weight:800;font-size:14.5px;
+  background:linear-gradient(160deg,var(--gold),#d9a91f);color:#241400;margin-top:4px;
+  box-shadow:0 -10px 16px -6px #0a1812}
 .pop-btn:hover{filter:brightness(1.05)}
 
 /* ===== TAHMİNLERİM özet ===== */
@@ -401,9 +405,11 @@ nav.tabs button:hover{color:var(--ink)}
 
 /* ===== MODAL ===== */
 #modal{position:fixed;inset:0;z-index:90;background:rgba(4,10,7,.7);backdrop-filter:blur(4px);
-  display:none;place-items:center;padding:20px}
+  display:none;place-items:center;padding:20px;
+  padding:calc(16px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom))}
 #modal.show{display:grid}
-.mcard{width:100%;max-width:560px;max-height:86vh;overflow:auto;background:linear-gradient(180deg,#0f2419,#0a1812);
+.mcard{width:100%;max-width:560px;max-height:86vh;max-height:86dvh;overflow:auto;-webkit-overflow-scrolling:touch;
+  background:linear-gradient(180deg,#0f2419,#0a1812);
   border:1px solid var(--line2);border-radius:20px;
   scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
 .mcard::-webkit-scrollbar{width:9px}
@@ -1266,7 +1272,10 @@ function myOpenUnpredicted(){
 }
 function showMissingPopup(list){
   const items=list.map(m=>`<div class="pmatch">
-     <span class="pm-t">${esc(trName(m.team_home))} – ${esc(trName(m.team_away))}</span>
+     <div class="pm-l">
+       <span class="pm-t">${esc(trName(m.team_home))} – ${esc(trName(m.team_away))}</span>
+       <span class="pm-s">${esc(STAGE_LABEL[m.stage]||m.label||"")}</span>
+     </div>
      <span class="pm-d">${esc(fmtKick(m.kickoff))}</span></div>`).join("");
   showPopup(`
     <button class="x" id="popupClose">✕</button>
