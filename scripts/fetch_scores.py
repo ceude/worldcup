@@ -19,8 +19,15 @@ esnek yazıldı (birkaç olası alan adını dener). İlk çalıştırmada --deb
 gelen yapıyı gör; gerekirse aşağıdaki GETTER fonksiyonlarındaki anahtarları düzelt.
 """
 
-import os, sys, json, time, unicodedata, urllib.request, urllib.error
+import os, sys, json, time, socket, unicodedata, urllib.request, urllib.error
 from datetime import datetime, timezone
+
+# Bazı CI ortamlarında IPv6 (AAAA) çözümü "Temporary failure in name resolution"
+# (Errno -3) verebiliyor. Tüm aramaları IPv4'e sabitleyerek bunu önlüyoruz.
+_orig_getaddrinfo = socket.getaddrinfo
+def _ipv4_only(host, port, family=0, type=0, proto=0, flags=0):
+    return _orig_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
+socket.getaddrinfo = _ipv4_only
 
 API_URL = os.environ.get("WC_API_URL", "https://worldcup26.ir/get/games")
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
@@ -111,7 +118,7 @@ def is_live(game):
     if s and s.replace("'","").strip().isdigit(): return True
     return any(w in s for w in LIVE_WORDS)
 
-def http_get_json(url, headers=None, tries=3):
+def http_get_json(url, headers=None, tries=4, label="API"):
     last=None
     for i in range(tries):
         try:
@@ -119,10 +126,10 @@ def http_get_json(url, headers=None, tries=3):
             with urllib.request.urlopen(req, timeout=30) as r:
                 return json.loads(r.read().decode("utf-8"))
         except (urllib.error.URLError, TimeoutError) as e:
-            last=e; print(f"  ağ hatası ({i+1}/{tries}): {e}; tekrar deneniyor..."); time.sleep(3)
+            last=e; print(f"  {label} ağ hatası ({i+1}/{tries}): {e}; bekleniyor..."); time.sleep(3*(i+1))
     raise last
 
-def supabase(method, path, body=None, tries=3):
+def supabase(method, path, body=None, tries=4):
     url = f"{SUPABASE_URL}/rest/v1/{path}"
     headers = {
         "apikey": SERVICE_KEY,
@@ -138,15 +145,17 @@ def supabase(method, path, body=None, tries=3):
             with urllib.request.urlopen(req, timeout=30) as r:
                 txt = r.read().decode("utf-8")
                 return json.loads(txt) if txt else []
+        except urllib.error.HTTPError:
+            raise  # gerçek HTTP hatası (401/403 vb.) tekrar denenmez
         except (urllib.error.URLError, TimeoutError) as e:
-            last=e; print(f"  Supabase ağ hatası ({i+1}/{tries}): {e}; tekrar deneniyor..."); time.sleep(3)
+            last=e; print(f"  Supabase ağ hatası ({i+1}/{tries}): {e}; bekleniyor..."); time.sleep(3*(i+1))
     raise last
 
 def main():
     if not SUPABASE_URL or not SERVICE_KEY:
         print("HATA: SUPABASE_URL / SUPABASE_SERVICE_KEY ortam değişkenleri yok."); sys.exit(1)
 
-    raw = http_get_json(API_URL)
+    raw = http_get_json(API_URL, label="worldcup26.ir")
     games = raw if isinstance(raw, list) else (raw.get("data") or raw.get("games") or raw.get("matches") or [])
     if DEBUG:
         print("Toplam oyun:", len(games))
