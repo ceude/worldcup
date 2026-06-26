@@ -19,15 +19,50 @@ esnek yazıldı (birkaç olası alan adını dener). İlk çalıştırmada --deb
 gelen yapıyı gör; gerekirse aşağıdaki GETTER fonksiyonlarındaki anahtarları düzelt.
 """
 
-import os, sys, json, time, socket, unicodedata, urllib.request, urllib.error
+import os, sys, json, time, socket, unicodedata, urllib.request, urllib.error, urllib.parse
 from datetime import datetime, timezone
 
-# Bazı CI ortamlarında IPv6 (AAAA) çözümü "Temporary failure in name resolution"
-# (Errno -3) verebiliyor. Tüm aramaları IPv4'e sabitleyerek bunu önlüyoruz.
-_orig_getaddrinfo = socket.getaddrinfo
-def _ipv4_only(host, port, family=0, type=0, proto=0, flags=0):
-    return _orig_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
-socket.getaddrinfo = _ipv4_only
+# --- DNS sağlamlaştırma ---------------------------------------------------
+# Bazı GitHub runner'ları belirli alan adlarını (ör. .ir) çözemiyor
+# ("Name or service not known"). Çözüm: sistem DNS başarısız olursa
+# Cloudflare DNS-over-HTTPS (1.1.1.1, doğrudan IP) ile A kaydını bulup
+# o IP'yi kullan. SNI/Host hostname olarak kaldığı için sertifika doğrulaması bozulmaz.
+_HOST_IP = {}  # hostname -> sabit IP
+_real_getaddrinfo = socket.getaddrinfo
+def _patched_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+    if host in _HOST_IP:
+        return [(socket.AF_INET, socket.SOCK_STREAM, proto, "", (_HOST_IP[host], port))]
+    return _real_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)  # IPv4'e sabitle
+socket.getaddrinfo = _patched_getaddrinfo
+
+def doh_resolve(host):
+    # Cloudflare (literal IP, DNS gerektirmez) -> Google yedek
+    for url in (f"https://1.1.1.1/dns-query?name={host}&type=A",
+                f"https://dns.google/resolve?name={host}&type=A"):
+        try:
+            req = urllib.request.Request(url, headers={"accept": "application/dns-json"})
+            with urllib.request.urlopen(req, timeout=15) as r:
+                data = json.loads(r.read().decode())
+            for ans in data.get("Answer", []):
+                if ans.get("type") == 1 and ans.get("data"):
+                    return ans["data"]
+        except Exception:
+            continue
+    return None
+
+def ensure_resolvable(host):
+    try:
+        _real_getaddrinfo(host, 443, socket.AF_INET)
+        return True
+    except OSError:
+        ip = doh_resolve(host)
+        if ip:
+            _HOST_IP[host] = ip
+            print(f"  {host} sistem DNS ile çözülemedi; DoH ile bulundu -> {ip}")
+            return True
+        print(f"  {host} DoH ile de çözülemedi.")
+        return False
+# -------------------------------------------------------------------------
 
 API_URL = os.environ.get("WC_API_URL", "https://worldcup26.ir/get/games")
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
@@ -154,6 +189,11 @@ def supabase(method, path, body=None, tries=4):
 def main():
     if not SUPABASE_URL or not SERVICE_KEY:
         print("HATA: SUPABASE_URL / SUPABASE_SERVICE_KEY ortam değişkenleri yok."); sys.exit(1)
+
+    # API alan adını çözebildiğimizden emin ol (gerekirse DoH ile)
+    api_host = urllib.parse.urlparse(API_URL).hostname
+    if api_host:
+        ensure_resolvable(api_host)
 
     raw = http_get_json(API_URL, label="worldcup26.ir")
     games = raw if isinstance(raw, list) else (raw.get("data") or raw.get("games") or raw.get("matches") or [])
