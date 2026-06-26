@@ -424,7 +424,7 @@ nav.tabs button:hover{color:var(--ink)}
   </a>
 
   <div id="ribbon">
-    <div class="tag">⚽ MAÇ SONUÇLARI</div>
+    <div class="tag">MAÇ SONUÇLARI</div>
     <div class="viewport"><div class="track" id="ribbonTrack"></div></div>
   </div>
 
@@ -634,6 +634,7 @@ let matches=[], predsMine={}, predsAll=[], profiles=[], predCounts={};
 let curStage="r32", curGroup="ALL", adminStage="group";
 let sortMode="date"; // "date" = tarihe göre (varsayılan), "group" = gruba göre
 let showPast=false; // false = sadece 24 Haziran ve sonrası; true = öncesi de görünür
+let showOpenOnly=false; // Son 32 / Son 16: sadece kilitli olmayan (tahmine açık) maçlar
 // 24 Haziran 2026, Almanya saatiyle gün başı — bu tarihten öncesi varsayılan gizli
 const CUTOFF = new Date(berlinInputToUTCISO("2026-06-24T00:00"));
 let registerMode=false;
@@ -888,6 +889,10 @@ function renderMatches(){
   // Varsayılan: sadece 24 Haziran ve sonrası. Filtre açıksa öncesi de gelir.
   if(!showPast) ms=ms.filter(m=> new Date(m.kickoff) >= CUTOFF);
 
+  // Son 32 / Son 16: sadece kilitli olmayan (tahmine açık) maçlar
+  const openMode = (curStage==="r32"||curStage==="r16") && showOpenOnly;
+  if(openMode) ms=ms.filter(m=>!isLocked(m));
+
   ms=[...ms];
   const groupMode = curStage==="group" && sortMode==="group" && curGroup==="ALL";
   if(groupMode){
@@ -897,9 +902,12 @@ function renderMatches(){
   }
   if(!ms.length){
     const allInStage=matches.filter(m=>m.stage===curStage);
-    const msg = !showPast && allInStage.length && allInStage.every(m=>new Date(m.kickoff) < CUTOFF)
-      ? `<div class="empty">Bu sekmedeki maçların hepsi 24 Haziran'dan önce.<br><small style="opacity:.6">Görmek için "24 Haziran öncesini göster" geçişini aç.</small></div>`
-      : `<div class="empty">Bu sekmede maç yok.</div>`;
+    let msg=`<div class="empty">Bu sekmede maç yok.</div>`;
+    if(openMode){
+      msg=`<div class="empty">Şu an tahmine açık (kilitli olmayan) maç yok.<br><small style="opacity:.6">Takımlar belli olup maç saati gelmemiş maçlar burada görünür.</small></div>`;
+    }else if(!showPast && allInStage.length && allInStage.every(m=>new Date(m.kickoff) < CUTOFF)){
+      msg=`<div class="empty">Bu sekmedeki maçların hepsi 24 Haziran'dan önce.<br><small style="opacity:.6">Görmek için "24 Haziran öncesini göster" geçişini aç.</small></div>`;
+    }
     list.innerHTML=msg; return;
   }
   let html="", lastKey=null;
@@ -956,6 +964,16 @@ function renderStageFilters(){
 }
 function renderSortFilters(){
   const box=$("#sortFilters");
+  // Son 32 / Son 16: sadece kilitli olmayanları göster düğmesi
+  if(curStage==="r32" || curStage==="r16"){
+    box.innerHTML = `<button class="fin-toggle ${showOpenOnly?"on":""}" id="openToggleBtn">
+        <span class="tog-track"><span class="tog-thumb"></span></span>
+        Sadece kilitli olmayanları göster
+      </button>`;
+    const ob=$("#openToggleBtn");
+    if(ob) ob.onclick=()=>{ showOpenOnly=!showOpenOnly; renderSortFilters(); renderMatches(); };
+    return;
+  }
   if(curStage!=="group"){ box.innerHTML=""; return; }
   const pastCount=matches.filter(m=>m.stage===curStage && new Date(m.kickoff) < CUTOFF).length;
   const toggleHTML = pastCount ? `
@@ -966,8 +984,8 @@ function renderSortFilters(){
       </button>
     </span>` : "";
   box.innerHTML = `
-    <button class="pill ${sortMode==="date"?"on":""}" data-sort="date">📅 Tarihe göre</button>
-    <button class="pill ${sortMode==="group"?"on":""}" data-sort="group">🔤 Gruba göre</button>
+    <button class="pill ${sortMode==="date"?"on":""}" data-sort="date">Tarihe göre</button>
+    <button class="pill ${sortMode==="group"?"on":""}" data-sort="group">Gruba göre</button>
     ${toggleHTML}`;
   box.querySelectorAll(".pill[data-sort]").forEach(b=>b.onclick=()=>{
     sortMode=b.dataset.sort; renderSortFilters(); renderMatches();
@@ -1123,7 +1141,7 @@ function renderRibbon(){
 
   const parts=[];
   if(yest.length){ parts.push(tag("⬅️ DÜN")); yest.forEach(m=> parts.push(m.finished?done(m):fix(m))); }
-  if(today.length){ parts.push(tag("🔴 BUGÜN")); today.forEach(m=> parts.push(fix(m))); }
+  if(today.length){ parts.push(tag("🔴 BUGÜN")); today.forEach(m=> parts.push(m.finished?done(m):fix(m))); }
   if(tom.length){ parts.push(tag("➡️ YARIN")); tom.forEach(m=> parts.push(fix(m))); }
 
   // Hiç dün/bugün/yarın maçı yoksa: yaklaşan maçları göster
