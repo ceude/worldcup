@@ -154,6 +154,16 @@ def is_live(game):
     if s and s.replace("'","").strip().isdigit(): return True
     return any(w in s for w in LIVE_WORDS)
 
+EXTRA_WORDS = {"aet","pen","penalt","et","extra","afterextra"}
+def in_extra_time(game):
+    """Maç uzatmaya/penaltıya geçmiş mi? (eleme maçlarında 90 dk skorunu korumak için)"""
+    s = norm(get_status(game))
+    if any(w in s for w in EXTRA_WORDS): return True
+    # "91", "105", "120" gibi dakika -> normal süre bitmiş
+    digits = "".join(ch for ch in s.split("+")[0] if ch.isdigit())
+    if digits and int(digits) > 90: return True
+    return False
+
 def http_get_json(url, headers=None, tries=4, label="API"):
     last=None
     for i in range(tries):
@@ -204,7 +214,7 @@ def main():
         return
 
     # Bizim maçlar (takımı belli olanlar)
-    rows = supabase("GET", "matches?select=id,team_home,team_away,kickoff,home_score,away_score,finished")
+    rows = supabase("GET", "matches?select=id,team_home,team_away,kickoff,home_score,away_score,finished,stage")
     index = {}
     for m in rows:
         if m.get("team_home") and m.get("team_away"):
@@ -251,6 +261,19 @@ def main():
             hs, as_ = int(hs), int(as_)
         except (TypeError, ValueError):
             continue
+
+        # --- Eleme turu (uzatma kuralı) ---
+        # Tahminler 90 dk skoruna göre. API bitmiş skoru uzatmayı içerebilir.
+        # Bu yüzden eleme maçlarını otomatik KESİNLEŞTİRME; uzatmaya geçince DOKUNMA.
+        is_knockout = (m.get("stage") or "group") != "group"
+        if is_knockout:
+            if in_extra_time(game) or fin:
+                # 90 dk + sonrası: 90 dk skoru korunsun, kesin sonucu admin girsin
+                if DIAG:
+                    print(f"  (eleme) {h}-{a}: uzatma/bitiş -> otomatik atlandı, 90 dk skorunu admin girecek")
+                continue
+            # Eleme + normal süre içinde canlı: geçici skoru yaz ama 'finished' yapma
+            fin = False
 
         # Değişmemişse atla
         if m.get("home_score") == hs and m.get("away_score") == as_ and bool(m.get("finished")) == fin:
