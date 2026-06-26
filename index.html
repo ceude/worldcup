@@ -1295,12 +1295,15 @@ function buildStatCandidates(){
     const predicted=rows.filter(r=>r.pred);
     const everyone = np>0 && predicted.length===np;
     const exactCount=rows.filter(r=>r.g && r.g.type==="exact").length;
-    if(everyone && rows.every(r=>r.g && r.g.type==="bad"))
-      out.push({id:m.id+"|allwrong", m, ic:"💀", title:"Bu maçta herkes yanıldı! Berbat 😅"});
-    if(everyone && rows.every(r=>r.g && (r.g.type==="exact"||r.g.type==="outc")))
-      out.push({id:m.id+"|allright", m, ic:"🎯", title:"Bu maçın sonucunu herkes bildi! Fevkalade 👏"});
+    const wrongCount=rows.filter(r=>r.g && r.g.type==="bad").length;
+    if(everyone && wrongCount===rows.length)
+      out.push({id:m.id+"|allwrong", m, ic:"💀", title:"Bu maçta herkes yanıldı! Berbat"});
+    if(everyone && wrongCount===0)
+      out.push({id:m.id+"|allright", m, ic:"🎯", title:"Bu maçın sonucunu herkes bildi! Fevkalade"});
+    if(everyone && wrongCount===1)
+      out.push({id:m.id+"|onewrong", m, ic:"😬", title:"Bu maçın sonucunu sadece 1 kişi bilemedi! Talihsiz"});
     if(exactCount>=3)
-      out.push({id:m.id+"|exact", m, ic:"🤯", title:`Bu maçın tam skorunu ${exactCount} kişi bildi! İnanılmaz 🔥`});
+      out.push({id:m.id+"|exact", m, ic:"🤯", title:`Bu maçın tam skorunu ${exactCount} kişi bildi! İnanılmaz`});
   });
   return out;
 }
