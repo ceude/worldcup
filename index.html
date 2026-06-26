@@ -804,7 +804,7 @@ function teamHTML(name,slot,side){
     const flg = fl?`<img class="fl" src="${fl}" alt="" loading="lazy">`:`<span class="fl ph">?</span>`;
     return `<div class="team ${side}">${flg}<span class="nm">${esc(trName(name))}</span></div>`;
   }
-  return `<div class="team ${side}"><span class="fl ph">?</span><span class="nm placeholder-slot">${esc(slot||"?")}</span></div>`;
+  return `<div class="team ${side}"><span class="fl ph">?</span><span class="nm placeholder-slot">Unknown</span></div>`;
 }
 function matchCard(m){
   const locked=isLocked(m), fin=m.finished, live=isLive(m);
