@@ -226,26 +226,36 @@ def main():
         h, a = to_our_team(rawh), to_our_team(rawa)
         fin0, live0 = is_finished(game), is_live(game)
 
-        # Teşhis: API'de canlı veya yeni biten görünen her maçı analiz et
+        # Maçı bul: önce aynı sıra, olmazsa ters sıra (ev/deplasman kayıtta ters olabilir)
+        m = None; swapped = False
+        if h and a:
+            m = index.get((norm(h), norm(a)))
+            if not m:
+                m = index.get((norm(a), norm(h)))
+                if m: swapped = True
+
+        # Teşhis
         if DIAG and (live0 or fin0):
-            m0 = index.get((norm(h), norm(a))) if (h and a) else None
-            reason = "OK"
             if not h or not a: reason = f"İSİM EŞLEŞMEDİ (api: '{rawh}' / '{rawa}')"
-            elif not m0:       reason = f"SUPABASE'DE MAÇ YOK ({h} vs {a})"
+            elif not m:        reason = f"SUPABASE'DE MAÇ YOK ({h} vs {a})"
             else:
-                k0 = parse_dt(m0.get("kickoff"))
-                if k0 and k0 < PROTECT_BEFORE: reason = f"KORUMA TARİHİ ({m0.get('kickoff')})"
+                k0 = parse_dt(m.get("kickoff"))
+                has_score = m.get("home_score") is not None and m.get("away_score") is not None
+                if k0 and k0 < PROTECT_BEFORE and has_score:
+                    reason = f"KORUMA (skor dolu, korunuyor) ({m.get('kickoff')})"
+                elif k0 and k0 < PROTECT_BEFORE:
+                    reason = f"26 ÖNCESİ ama skor boş -> DOLDURULACAK"
+                else:
+                    reason = "OK" + (" [sıra ters, skor çevrildi]" if swapped else "")
             print(f"[DIAG {'CANLI' if live0 else 'BİTTİ'}] {rawh} {get_hs(game)}-{get_as(game)} {rawa} | time_elapsed={get_status(game)!r} -> {reason}")
 
-        if not h or not a:
-            continue
-        m = index.get((norm(h), norm(a)))
         if not m:
             continue
 
-        # Koruma: 26 Haziran öncesi (elle girilmiş) maçlara hiç dokunma
+        # Koruma (akıllı): 26 Haziran öncesi maçın skoru DOLUYSA üzerine yazma (elle girileni koru).
+        # Skoru boş/silinmişse doldurmaya izin ver.
         k = parse_dt(m.get("kickoff"))
-        if k and k < PROTECT_BEFORE:
+        if k and k < PROTECT_BEFORE and m.get("home_score") is not None and m.get("away_score") is not None:
             continue
 
         fin  = is_finished(game)
@@ -261,6 +271,8 @@ def main():
             hs, as_ = int(hs), int(as_)
         except (TypeError, ValueError):
             continue
+        if swapped:
+            hs, as_ = as_, hs   # ev/deplasman ters eşleşti -> skoru da çevir
 
         # --- Eleme turu (uzatma kuralı) ---
         # Tahminler 90 dk skoruna göre. API bitmiş skoru uzatmayı içerebilir.
