@@ -321,6 +321,8 @@ nav.tabs button:hover{color:var(--ink)}
 .actual.live .lab{color:var(--energy)}
 .chart-live{display:inline-flex;align-items:center;gap:2px;background:#2a1008;border:1px solid rgba(255,90,60,.4);
   color:var(--energy);font-weight:800;font-size:11px;letter-spacing:.5px;padding:3px 9px;border-radius:999px;margin-left:auto}
+.mph-live{display:inline-flex;align-items:center;gap:3px;color:var(--energy);font-weight:800;font-size:11.5px;
+  letter-spacing:.5px;margin-top:6px}
 #ribbon .it.itlive{color:var(--energy)}
 #ribbon .it.itlive b{color:var(--energy)}
 .livedot-svg{animation:dpulse 1.3s infinite}
@@ -1310,6 +1312,7 @@ function matchPredListHTML(m){
   }).join("");
 }
 function matchResHeadHTML(m, closeId){
+  const live = isInPlay(m);
   return `<div class="matchpred-head">
     <button class="x" id="${closeId}">✕</button>
     <div class="bigres">
@@ -1317,11 +1320,12 @@ function matchResHeadHTML(m, closeId){
       <div class="sc">${m.home_score} – ${m.away_score}</div>
       <div class="t">${esc(trName(m.team_away))}</div>
     </div>
+    ${live?`<div class="mph-live"><span class="livedot"></span>CANLI · puanlar geçici</div>`:""}
     <div class="mph-sub">${m.grp?`Grup ${esc(m.grp)}`:esc(m.label||STAGE_LABEL[m.stage])} · ${esc(fmtKick(m.kickoff))}</div>
   </div>`;
 }
 function openMatchPreds(mid){
-  const m=matches.find(x=>x.id===mid); if(!m||!m.finished) return;
+  const m=matches.find(x=>x.id===mid); if(!m || (!m.finished && !isInPlay(m))) return;
   $("#modalCard").innerHTML=`
     ${matchResHeadHTML(m,"mCloseAP")}
     <div class="legend">
