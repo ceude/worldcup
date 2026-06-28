@@ -304,7 +304,7 @@ nav.tabs button:hover{color:var(--ink)}
 .tpick:hover{border-color:var(--line2);transform:translateY(-1px)}
 .tpick.sel{border-color:var(--gold);background:#1a2a1a;box-shadow:0 0 0 1px var(--gold)}
 .tpick img{width:26px;height:20px;object-fit:cover;border-radius:4px;flex:0 0 auto;box-shadow:0 1px 3px rgba(0,0,0,.4)}
-.tpick span{font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tpick span{font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff}
 .lbinfo{flex:1;min-width:0}
 .lbinfo .nm{font-weight:700;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lbinfo .st{font-size:11px;color:var(--muted);font-weight:600}
@@ -1451,7 +1451,7 @@ function showTeamPicker(firstTime){
     <button class="x" id="popupClose">✕</button>
     <div class="pop-ic">🏳️</div>
     <h3 class="pop-h">Takımını seç</h3>
-    <p class="pop-p">Turnuvada desteklediğin takımı seç; lider tablosundaki avatarın o ülkenin <b>yuvarlak bayrağı</b> olsun.<br><span style="font-size:12px;color:var(--muted)">Sadece desteklediğin takımı göstermek içindir, puan sistemini etkilemez.</span></p>
+    <p class="pop-p">Turnuvada desteklediğin takımı seç; lider tablosundaki avatarın o ülkenin <b>yuvarlak bayrağı</b> olsun.<br><span style="font-size:12px;color:var(--muted)">Sadece desteklediğin takımı göstermek içindir, puan sistemini etkilemez. İstediğin zaman profilinden değiştirebilirsin.</span></p>
     <div class="tpgrid">${grid}</div>
     ${firstTime?'':'<button class="pop-btn" id="popupClose2">Kapat</button>'}`);
   document.querySelectorAll(".tpick").forEach(b=>b.onclick=()=>setFavTeam(b.dataset.team));
