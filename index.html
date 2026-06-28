@@ -292,6 +292,19 @@ nav.tabs button:hover{color:var(--ink)}
 .lbav{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:14px;
   background:linear-gradient(160deg,#1e3c2a,#0e2017);border:1px solid var(--line2);color:#cfe3d6}
 .lbrow.me .lbav{background:linear-gradient(160deg,var(--gold),#b8860b);color:#241400;border:none}
+.lbav.flag,.av.flag{background:none!important;padding:0;overflow:hidden}
+.avflag{width:100%;height:100%;object-fit:cover;border-radius:50%;display:block}
+.av.flag{overflow:hidden}
+.lbrow.me .lbav.flag{box-shadow:0 0 0 2px var(--gold)}
+/* Takım seçme grid'i */
+.tpgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:left;margin-bottom:6px}
+@media(max-width:480px){.tpgrid{grid-template-columns:repeat(2,1fr)}}
+.tpick{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);
+  border-radius:11px;padding:8px 10px;cursor:pointer;transition:all .12s;min-width:0}
+.tpick:hover{border-color:var(--line2);transform:translateY(-1px)}
+.tpick.sel{border-color:var(--gold);background:#1a2a1a;box-shadow:0 0 0 1px var(--gold)}
+.tpick img{width:26px;height:20px;object-fit:cover;border-radius:4px;flex:0 0 auto;box-shadow:0 1px 3px rgba(0,0,0,.4)}
+.tpick span{font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lbinfo{flex:1;min-width:0}
 .lbinfo .nm{font-weight:700;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lbinfo .st{font-size:11px;color:var(--muted);font-weight:600}
@@ -725,8 +738,15 @@ const STAGE_NOUN = {
 
 const trName = e => TR[e] || e;
 const flagUrl = e => FLAG[e] ? `https://flagcdn.com/48x36/${FLAG[e]}.png` : null;
+const favFlagUrl = e => FLAG[e] ? `https://flagcdn.com/80x60/${FLAG[e]}.png` : null;
 const esc = s => (s==null?"":String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const initials = u => (u||"?").trim().slice(0,2).toUpperCase();
+// Avatar: takım seçilmişse yuvarlak bayrak, yoksa baş harfler
+function avatarInner(username, favTeam){
+  const f = favTeam && favFlagUrl(favTeam);
+  return f ? `<img class="avflag" src="${f}" alt="${esc(trName(favTeam))}" title="${esc(trName(favTeam))}">`
+           : esc(initials(username));
+}
 
 /* ====================================================================
    3) State + Supabase client
@@ -884,7 +904,7 @@ async function loadAll(){
     sb.from("matches").select("*").order("ord"),
     sb.from("predictions").select("*").eq("user_id",session.user.id),
     sb.from("predictions").select("user_id,match_id,home,away"),
-    sb.from("profiles").select("id,username,is_admin"),
+    sb.from("profiles").select("id,username,is_admin,fav_team"),
     sb.rpc("prediction_counts")
   ]);
   matches = mq.data||[];
@@ -1200,7 +1220,7 @@ function buildLeaderboard(){
     return {pts,exact,outc,today,live};
   }
   let rows=players.map(p=>{ const t=tot(p.id,false);
-    return {id:p.id, username:p.username, is_admin:p.is_admin, pts:t.pts, exact:t.exact, outc:t.outc,
+    return {id:p.id, username:p.username, is_admin:p.is_admin, fav:p.fav_team, pts:t.pts, exact:t.exact, outc:t.outc,
             todayPts:t.today, livePts:t.live, picks:(predCounts&&predCounts[p.id]!=null)?predCounts[p.id]:0 }; });
   rows.sort((a,b)=> b.pts-a.pts || b.exact-a.exact || a.username.localeCompare(b.username,"tr"));
   rankRows(rows);
@@ -1221,7 +1241,7 @@ function lbRowHTML(r){
   else if(r.todayPts>0) st2=`<div class="st2">${arrow}bugün +${r.todayPts}</div>`;
   return `<div class="lbrow ${meCls}" data-uid="${r.id}">
     <div class="rank ${gcls}">${medal}</div>
-    <div class="lbav">${esc(initials(r.username))}</div>
+    <div class="lbav${r.fav?' flag':''}">${avatarInner(r.username, r.fav)}</div>
     <div class="lbinfo"><div class="nm">${esc(r.username)}${r.is_admin?' ⚙️':''}</div>
       <div class="st"><span class="e">${r.exact} tam</span> · <span class="o">${r.outc} sonuç</span> · ${r.picks} tahmin</div>
       ${st2}</div>
@@ -1407,6 +1427,8 @@ function renderStats(){
   });
 }
 function maybeShowOpeningPopup(){
+  // Önce: turnuvada desteklediği takımı seçmemişse, takım seçimi her şeyin önünde çıksın
+  if(me && !me.fav_team){ showTeamPicker(true); return; }
   const open=myOpenUnpredicted();
   if(open.length){ showMissingPopup(open); return; }
   // Eksik maç yoksa: henüz görülmemiş istatistiklerden rastgele BİR tanesi
@@ -1417,6 +1439,33 @@ function maybeShowOpeningPopup(){
   const c=cands[Math.floor(Math.random()*cands.length)];
   showStatPopup(c);
   markStatSeen(uid,c.id);
+}
+// Turnuvada desteklenen takımı seçme pop-up'ı (avatar = yuvarlak bayrak)
+function showTeamPicker(firstTime){
+  const cur=me&&me.fav_team;
+  const grid=ALL_TEAMS.map(t=>`
+    <button class="tpick${t===cur?' sel':''}" data-team="${esc(t)}">
+      <img src="${favFlagUrl(t)}" alt=""><span>${esc(trName(t))}</span>
+    </button>`).join("");
+  showPopup(`
+    <button class="x" id="popupClose">✕</button>
+    <div class="pop-ic">🏳️</div>
+    <h3 class="pop-h">Takımını seç</h3>
+    <p class="pop-p">Turnuvada desteklediğin takımı seç; lider tablosundaki avatarın o ülkenin <b>yuvarlak bayrağı</b> olsun.<br><span style="font-size:12px;color:var(--muted)">Sadece desteklediğin takımı göstermek içindir, puan sistemini etkilemez.</span></p>
+    <div class="tpgrid">${grid}</div>
+    ${firstTime?'':'<button class="pop-btn" id="popupClose2">Kapat</button>'}`);
+  document.querySelectorAll(".tpick").forEach(b=>b.onclick=()=>setFavTeam(b.dataset.team));
+}
+async function setFavTeam(team){
+  try{
+    await sb.from("profiles").update({fav_team:team}).eq("id",session.user.id);
+    me.fav_team=team;
+    const mine=profiles.find(p=>p.id===session.user.id); if(mine) mine.fav_team=team;
+    $("#meAv").innerHTML=avatarInner(me.username, me.fav_team);
+    $("#meAv").classList.toggle("flag", !!me.fav_team);
+    closePopup();
+    renderAll();
+  }catch(e){ alert("Takım kaydedilemedi: "+(e.message||e)); }
 }
 
 /* ====================================================================
@@ -1757,7 +1806,11 @@ function renderAll(){
 async function enterApp(){
   show($("#authScreen"),false); show($("#setupScreen"),false); show($("#appScreen"),true);
   $("#meName").textContent=me.username;
-  $("#meAv").textContent=initials(me.username);
+  $("#meAv").innerHTML=avatarInner(me.username, me.fav_team);
+  $("#meAv").classList.toggle("flag", !!me.fav_team);
+  $("#meAv").title="Takımını seç / değiştir";
+  $("#meAv").style.cursor="pointer";
+  $("#meAv").onclick=()=>showTeamPicker(false);
   show($("#adminTab"),!!me.is_admin);
   // Son aktiflik zamanını güncelle (hata olursa sessizce geç — kolon yoksa app çökmesin)
   try{ await sb.from("profiles").update({last_active:new Date().toISOString()}).eq("id",session.user.id); }catch(e){}
