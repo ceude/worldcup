@@ -1359,7 +1359,8 @@ function renderLeaderboard(){
   box.innerHTML=liveStrip+rows.map(lbRowHTML).join("");
   box.querySelectorAll(".lbrow").forEach(el=>el.onclick=()=>openProfile(el.dataset.uid));
 }
-function openProfile(uid){
+function openProfile(uid, opts){
+  const showPrivate = !!(opts && opts.private); // sadece sağ üstteki profil butonundan true
   const prof=profiles.find(p=>p.id===uid); if(!prof) return;
   const t=userTotals(uid);
   const byMatch={}; predsAll.forEach(p=>{ if(p.user_id===uid) byMatch[p.match_id]=p; });
@@ -1380,11 +1381,13 @@ function openProfile(uid){
     </div>`;
   }).join("");
 
-  // Şampiyon tahmini: kendi profilinde her zaman; başkalarınınki SADECE turnuva bitince (kazanan ilan edilince)
+  // Şampiyon tahmini: kendi profilinde SADECE sağ üstteki profil butonundan açınca (showPrivate);
+  // lider tablosundan tıklayınca gösterilmez (arkadaşlara sonuç gösterirken sızmasın).
+  // Başkasınınki SADECE turnuva bitince (kazanan ilan edilince).
   const isSelf = uid===session.user.id;
   const champWinner = appConfig.champion_winner;
   let champBlock="";
-  if(prof.champion && (isSelf || champWinner)){
+  if(prof.champion && ((isSelf && showPrivate) || (!isSelf && champWinner))){
     const won = champWinner && prof.champion===champWinner;
     champBlock=`<div class="prof-champ${won?' won':''}">
       <img src="${favFlagUrl(prof.champion)}" alt="">
@@ -1394,7 +1397,7 @@ function openProfile(uid){
       </div>
       ${won?'<span class="pc-won">TUTTU 🎉</span>':(champWinner?'<span class="pc-lost">—</span>':'<span class="pc-lock">🔒</span>')}
     </div>`;
-  } else if(isSelf && !prof.champion && championOpen()){
+  } else if(isSelf && showPrivate && !prof.champion && championOpen()){
     champBlock=`<div class="prof-champ empty"><div class="pc-info">
       <div class="pc-lab">🏆 Şampiyon tahmini</div>
       <div class="pc-name" style="font-size:13px;color:var(--muted)">Henüz seçmedin · son ${esc(championDeadlineStr())}</div>
@@ -1403,7 +1406,7 @@ function openProfile(uid){
 
   // Desteklenen takım (sadece kendi profilinde, değiştirme butonuyla)
   let favBlock="";
-  if(isSelf){
+  if(isSelf && showPrivate){
     if(prof.fav_team){
       favBlock=`<div class="prof-fav">
         <img src="${favFlagUrl(prof.fav_team)}" alt="">
@@ -2065,7 +2068,7 @@ async function enterApp(){
   $("#meAv").classList.toggle("flag", !!me.fav_team);
   $("#meAv").title="Profilini gör";
   $("#meAv").style.cursor="pointer";
-  $("#meAv").onclick=()=>openProfile(session.user.id);
+  $("#meAv").onclick=()=>openProfile(session.user.id, {private:true});
   show($("#adminTab"),!!me.is_admin);
   // Son aktiflik zamanını güncelle (hata olursa sessizce geç — kolon yoksa app çökmesin)
   try{ await sb.from("profiles").update({last_active:new Date().toISOString()}).eq("id",session.user.id); }catch(e){}
