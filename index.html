@@ -305,6 +305,48 @@ nav.tabs button:hover{color:var(--ink)}
 .tpick.sel{border-color:var(--gold);background:#1a2a1a;box-shadow:0 0 0 1px var(--gold)}
 .tpick img{width:26px;height:20px;object-fit:cover;border-radius:4px;flex:0 0 auto;box-shadow:0 1px 3px rgba(0,0,0,.4)}
 .tpick span{font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff}
+
+/* ŞAMPİYON TAHMİNİ */
+.champ-deadline{display:inline-block;background:#2a1008;border:1px solid rgba(255,90,60,.5);color:var(--energy);
+  font-weight:800;font-size:13px;letter-spacing:.3px;padding:7px 14px;border-radius:999px;margin:2px 0 12px;
+  animation:champblink 1.1s ease-in-out infinite}
+@keyframes champblink{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(255,90,60,.5)}50%{opacity:.45;box-shadow:0 0 14px 2px rgba(255,90,60,.35)}}
+.tpgrid.champ .tpick{position:relative;padding-right:8px}
+.tpgrid.champ .cpts{margin-left:auto;font-family:'Anton';font-size:13px;color:var(--gold);letter-spacing:.5px;flex:0 0 auto}
+.tpick.champ{cursor:pointer}
+.tpick.champ span{flex:1}
+.champ-locked{display:flex;align-items:center;gap:12px;justify-content:center;background:var(--panel);
+  border:1px solid var(--line2);border-radius:14px;padding:14px 16px}
+.champ-locked img{width:46px;height:34px;object-fit:cover;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+.champ-locked .cl-name{font-family:'Anton';font-size:20px;color:#fff;letter-spacing:.5px}
+.champ-locked .cl-pts{font-size:12.5px;color:var(--gold2);font-weight:700}
+.champ-confirm{display:flex;gap:10px;margin-top:6px}
+.champ-confirm .pop-btn{flex:1}
+.pop-btn.ghost{background:#13261c;color:var(--ink);border:1px solid var(--line2);box-shadow:none}
+.champ-badge{display:inline-block;margin-left:6px;font-size:11px;font-weight:800;color:var(--gold);
+  background:#1f1a07;border:1px solid rgba(212,175,55,.4);border-radius:999px;padding:1px 7px;vertical-align:middle}
+/* Sidebar mini kart */
+.champ-mini{margin-bottom:16px;padding:14px}
+.champ-mini-row{display:flex;align-items:center;gap:11px;width:100%;cursor:pointer;background:none;border:none;text-align:left;padding:4px 0 0}
+.champ-mini-row img{width:40px;height:30px;object-fit:cover;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+.champ-mini-row .cm-name{font-family:'Anton';font-size:17px;color:#fff;letter-spacing:.5px}
+.champ-mini-row .cm-pts{font-size:12px;color:var(--gold2);font-weight:700}
+.champ-mini-cta{width:100%;margin-top:6px;background:linear-gradient(160deg,var(--gold),#d9a91f);color:#241400;
+  border:none;border-radius:11px;padding:11px;font-weight:800;font-size:13.5px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap}
+.champ-mini-cta .cm-dl{font-size:11px;font-weight:700;opacity:.85}
+/* Profil içi şampiyon bloğu */
+.prof-champ{display:flex;align-items:center;gap:12px;margin:14px 18px 4px;padding:12px 14px;
+  background:var(--panel);border:1px solid var(--line2);border-radius:13px}
+.prof-champ.won{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset;background:#1a1607}
+.prof-champ img{width:40px;height:30px;object-fit:cover;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,.4);flex:0 0 auto}
+.prof-champ .pc-info{flex:1;min-width:0}
+.prof-champ .pc-lab{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+.prof-champ .pc-name{font-family:'Anton';font-size:18px;color:#fff;letter-spacing:.5px;margin-top:2px}
+.prof-champ .pc-pts{font-size:13px;color:var(--gold);margin-left:4px}
+.prof-champ .pc-won{font-weight:800;color:var(--gold);font-size:13px}
+.prof-champ .pc-lock,.prof-champ .pc-lost{color:var(--muted)}
+.prof-champ.empty{background:#13231a}
 .lbinfo{flex:1;min-width:0}
 .lbinfo .nm{font-weight:700;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lbinfo .st{font-size:11px;color:var(--muted);font-weight:600}
@@ -637,11 +679,13 @@ nav.tabs button:hover{color:var(--ink)}
           Bayraklar ve Türkçe isimler otomatik gelir. Maç saatini de buradan düzeltebilirsin.</p>
         <div class="filters" id="adminStageFilters"></div>
         <div id="adminList"></div>
+        <div class="champ-admin" id="champAdmin"></div>
       </section>
     </main>
 
     <!-- RIGHT COLUMN -->
     <aside class="col-right">
+      <div class="panel champ-mini hidden" id="champMini"></div>
       <div class="panel" style="margin-bottom:16px">
         <div class="ph"><span class="ico">🏅</span><h3>Lider Tablosu</h3></div>
         <div class="lb-hint">Kişilere tıklayarak biten maçlardaki tahminlerini görebilirsiniz. Canlı maç sonuçları puanları anlık değiştirebilir, kesin puanlar maç sonucunda belirlenir.</div>
@@ -728,6 +772,22 @@ const STAGE_SCORING = {
   final:{outc:100,exact:220}
 };
 const scoringFor = stage => STAGE_SCORING[stage] || STAGE_SCORING.group;
+
+// ===== ŞAMPİYON TAHMİNİ (tek seferlik, kilitli) =====
+// Oranlara göre lineer hizalanmış, 1500'de tavanlanmış getiriler.
+const CHAMPION_POINTS = {
+  "France":100, "Argentina":120, "England":190, "Spain":190, "Portugal":270,
+  "Brazil":340, "Netherlands":390, "Germany":460, "Colombia":680, "United States":730,
+  "Norway":850, "Belgium":1100, "Morocco":1100, "Mexico":1220, "Japan":1460,
+  "Switzerland":1500, "Ecuador":1500, "Senegal":1500, "Canada":1500, "Croatia":1500,
+  "Austria":1500, "Egypt":1500, "Australia":1500, "Sweden":1500, "Côte d'Ivoire":1500,
+  "Ghana":1500, "Algeria":1500, "DR Congo":1500, "Paraguay":1500,
+  "Bosnia and Herzegovina":1500, "Cabo Verde":1500
+};
+const CHAMPION_TEAMS = Object.keys(CHAMPION_POINTS)
+  .sort((a,b)=> (CHAMPION_POINTS[a]-CHAMPION_POINTS[b]) || (TR[a]||a).localeCompare(TR[b]||b,"tr"));
+const CHAMPION_DEADLINE = new Date(berlinInputToUTCISO("2026-06-30T22:00")); // son seçim
+const championOpen = () => Date.now() < CHAMPION_DEADLINE.getTime();
 // Açıklama cümlesi için doğal tur ifadesi
 const STAGE_PHRASE = {
   group:"Grup aşamasında", r32:"Son 32 turunda", r16:"Son 16 turunda",
@@ -754,7 +814,7 @@ function avatarInner(username, favTeam){
    3) State + Supabase client
    ==================================================================== */
 let sb=null, session=null, me=null;
-let matches=[], predsMine={}, predsAll=[], profiles=[], predCounts={};
+let matches=[], predsMine={}, predsAll=[], profiles=[], predCounts={}, appConfig={};
 let curStage="r32", curGroup="ALL", adminStage="group";
 let sortMode="date"; // "date" = tarihe göre (varsayılan), "group" = gruba göre
 let showPast=false; // false = sadece 24 Haziran ve sonrası; true = öncesi de görünür
@@ -902,18 +962,23 @@ async function loadProfile(){
   }
 }
 async function loadAll(){
-  const [mq,pq,allq,profq,cntq]=await Promise.all([
+  const [mq,pq,allq,cntq]=await Promise.all([
     sb.from("matches").select("*").order("ord"),
     sb.from("predictions").select("*").eq("user_id",session.user.id),
     sb.from("predictions").select("user_id,match_id,home,away"),
-    sb.from("profiles").select("id,username,is_admin,fav_team"),
     sb.rpc("prediction_counts")
   ]);
+  // profiles: champion kolonu henüz yoksa app çökmesin diye yedekli
+  let profq = await sb.from("profiles").select("id,username,is_admin,fav_team,champion");
+  if(profq.error) profq = await sb.from("profiles").select("id,username,is_admin,fav_team");
+  // config: tablo henüz yoksa sessizce boş
+  let cfgq = await sb.from("config").select("key,value");
   matches = mq.data||[];
   predsMine={}; (pq.data||[]).forEach(p=>predsMine[p.match_id]=p);
   predsAll = allq.data||[];
   profiles = profq.data||[];
   predCounts={}; if(!cntq.error) (cntq.data||[]).forEach(r=>predCounts[r.user_id]=Number(r.cnt));
+  appConfig={}; if(!cfgq.error) (cfgq.data||[]).forEach(r=>appConfig[r.key]=r.value);
 }
 
 /* ====================================================================
@@ -1222,8 +1287,13 @@ function buildLeaderboard(){
     return {pts,exact,outc,today,live};
   }
   let rows=players.map(p=>{ const t=tot(p.id,false);
-    return {id:p.id, username:p.username, is_admin:p.is_admin, fav:p.fav_team, pts:t.pts, exact:t.exact, outc:t.outc,
+    return {id:p.id, username:p.username, is_admin:p.is_admin, fav:p.fav_team, champion:p.champion, pts:t.pts, exact:t.exact, outc:t.outc,
             todayPts:t.today, livePts:t.live, picks:(predCounts&&predCounts[p.id]!=null)?predCounts[p.id]:0 }; });
+  // Şampiyon bonusu: kazanan ilan edildiyse, doğru tahmin edenlere ekle
+  const champWinner = appConfig.champion_winner;
+  if(champWinner){
+    rows.forEach(r=>{ if(r.champion===champWinner){ r.champBonus=CHAMPION_POINTS[champWinner]||0; r.pts+=r.champBonus; } });
+  }
   rows.sort((a,b)=> b.pts-a.pts || b.exact-a.exact || a.username.localeCompare(b.username,"tr"));
   rankRows(rows);
   // ▲▼ için bugünü (canlı dahil) hariç tutan önceki sıralama
@@ -1241,10 +1311,11 @@ function lbRowHTML(r){
   let st2="";
   if(r.livePts>0) st2=`<div class="st2 live"><span class="livedot"></span>${arrow}canlı +${r.livePts} (geçici)</div>`;
   else if(r.todayPts>0) st2=`<div class="st2">${arrow}bugün +${r.todayPts}</div>`;
+  const champTag = r.champBonus ? `<span class="champ-badge" title="Şampiyon tahmini tuttu">🏆 +${r.champBonus}</span>` : "";
   return `<div class="lbrow ${meCls}" data-uid="${r.id}">
     <div class="rank ${gcls}">${medal}</div>
     <div class="lbav${r.fav?' flag':''}">${avatarInner(r.username, r.fav)}</div>
-    <div class="lbinfo"><div class="nm">${esc(r.username)}${r.is_admin?' ⚙️':''}</div>
+    <div class="lbinfo"><div class="nm">${esc(r.username)}${r.is_admin?' ⚙️':''}${champTag}</div>
       <div class="st"><span class="e">${r.exact} tam</span> · <span class="o">${r.outc} sonuç</span> · ${r.picks} tahmin</div>
       ${st2}</div>
     <div class="lbpts">${r.pts}<small>PUAN</small></div>
@@ -1279,11 +1350,33 @@ function openProfile(uid){
     </div>`;
   }).join("");
 
+  // Şampiyon tahmini: kendi profilinde her zaman; başkalarınınki SADECE turnuva bitince (kazanan ilan edilince)
+  const isSelf = uid===session.user.id;
+  const champWinner = appConfig.champion_winner;
+  let champBlock="";
+  if(prof.champion && (isSelf || champWinner)){
+    const won = champWinner && prof.champion===champWinner;
+    champBlock=`<div class="prof-champ${won?' won':''}">
+      <img src="${favFlagUrl(prof.champion)}" alt="">
+      <div class="pc-info">
+        <div class="pc-lab">🏆 Şampiyon tahmini${isSelf?' (sadece sana görünür)':''}</div>
+        <div class="pc-name">${esc(trName(prof.champion))} <span class="pc-pts">+${CHAMPION_POINTS[prof.champion]||0}</span></div>
+      </div>
+      ${won?'<span class="pc-won">TUTTU 🎉</span>':(champWinner?'<span class="pc-lost">—</span>':'<span class="pc-lock">🔒</span>')}
+    </div>`;
+  } else if(isSelf && !prof.champion && championOpen()){
+    champBlock=`<div class="prof-champ empty"><div class="pc-info">
+      <div class="pc-lab">🏆 Şampiyon tahmini</div>
+      <div class="pc-name" style="font-size:13px;color:var(--muted)">Henüz seçmedin · son ${esc(championDeadlineStr())}</div>
+    </div><button class="btn gold sm" id="profChampBtn">Seç</button></div>`;
+  }
+
   $("#modalCard").innerHTML=`
     <div class="mh"><div class="av">${esc(initials(prof.username))}</div>
       <div><h3>${esc(prof.username)}</h3>
         <div class="s">${t.pts} puan · ${t.exact} tam skor · ${t.outc} doğru sonuç · ${t.picks} tahmin</div></div>
       <button class="x" id="mClose">✕</button></div>
+    ${champBlock}
     <div class="legend">
       <span><i class="lg-e"></i> Skoru tam bildi (+100)</span>
       <span><i class="lg-o"></i> Sonucu bildi (+30)</span>
@@ -1292,6 +1385,7 @@ function openProfile(uid){
     <div class="pgrid">${rows||'<div class="empty">Henüz biten maç yok.</div>'}</div>`;
   $("#modal").classList.add("show");
   $("#mClose").onclick=closeModal;
+  const pcb=$("#profChampBtn"); if(pcb) pcb.onclick=()=>{ closeModal(); showChampionPicker(); };
 }
 function closeModal(){ $("#modal").classList.remove("show"); }
 
@@ -1431,7 +1525,9 @@ function renderStats(){
   });
 }
 function maybeShowOpeningPopup(){
-  // Önce: turnuvada desteklediği takımı seçmemişse, takım seçimi her şeyin önünde çıksın
+  // En önce: Şampiyon tahmini (seçmemişse ve süre dolmadıysa) her açılışta çıksın
+  if(me && !me.champion && championOpen()){ showChampionPicker(); return; }
+  // Sonra: turnuvada desteklediği takımı seçmemişse takım seçimi
   if(me && !me.fav_team){ showTeamPicker(true); return; }
   const open=myOpenUnpredicted();
   if(open.length){ showMissingPopup(open); return; }
@@ -1443,6 +1539,71 @@ function maybeShowOpeningPopup(){
   const c=cands[Math.floor(Math.random()*cands.length)];
   showStatPopup(c);
   markStatSeen(uid,c.id);
+}
+
+// ===== ŞAMPİYON TAHMİNİ POP-UP'I =====
+function championDeadlineStr(){
+  return CHAMPION_DEADLINE.toLocaleString("tr-TR",{timeZone:TZ,day:"2-digit",month:"long",hour:"2-digit",minute:"2-digit"});
+}
+function showChampionPicker(){
+  if(me && me.champion){ // zaten seçmiş: sadece göster (kilitli)
+    showPopup(`
+      <button class="x" id="popupClose">✕</button>
+      <div class="pop-ic">🏆</div>
+      <h3 class="pop-h">Şampiyon tahminin</h3>
+      <div class="champ-locked"><img src="${favFlagUrl(me.champion)}" alt=""><div>
+        <div class="cl-name">${esc(trName(me.champion))}</div>
+        <div class="cl-pts">Getiri: +${CHAMPION_POINTS[me.champion]||0} puan</div></div></div>
+      <p class="pop-p" style="margin-top:12px">Seçimin kilitli, değiştirilemez. 🔒<br>
+      <span style="font-size:12px;color:var(--muted)">Kimin hangi takımı seçtiği diğerlerine turnuva bitene kadar gösterilmeyecek. Turnuva tamamlandığında kupayı kazanan takıma göre puanlar eklenecektir.</span></p>
+      <button class="pop-btn" id="popupClose2">Tamam</button>`);
+    return;
+  }
+  if(!championOpen()){ closePopup(); return; }
+  const grid=CHAMPION_TEAMS.map(t=>`
+    <button class="tpick champ" data-team="${esc(t)}">
+      <img src="${favFlagUrl(t)}" alt=""><span>${esc(trName(t))}</span><b class="cpts">+${CHAMPION_POINTS[t]}</b>
+    </button>`).join("");
+  showPopup(`
+    <button class="x" id="popupClose">✕</button>
+    <div class="pop-ic">🏆</div>
+    <h3 class="pop-h">Şampiyon tahmini</h3>
+    <div class="champ-deadline">⏳ Son seçim: ${esc(championDeadlineStr())}</div>
+    <p class="pop-p">Turnuvanın şampiyonunu tahmin et. <b>Tek seferlik</b> ve seçince <b>bir daha değiştirilemez</b>. Tuttuğun takım kupayı kazanırsa karşısındaki puanı kazanırsın.<br>
+    <span style="font-size:12px;color:var(--muted)">Kimin hangi takımı seçtiği diğerlerine turnuva bitene kadar gösterilmeyecek. Turnuva tamamlandığında kupayı kazanan takıma göre puanlar eklenecektir.</span></p>
+    <div class="tpgrid champ">${grid}</div>
+    <button class="pop-btn ghost" id="champLater">Daha sonra karar ver</button>`);
+  document.querySelectorAll(".tpick.champ").forEach(b=>b.onclick=()=>confirmChampion(b.dataset.team));
+  const lt=$("#champLater"); if(lt) lt.onclick=closePopup;
+}
+function confirmChampion(team){
+  const pts=CHAMPION_POINTS[team]||0;
+  showPopup(`
+    <button class="x" id="popupClose">✕</button>
+    <div class="pop-ic">🏆</div>
+    <h3 class="pop-h">Emin misin?</h3>
+    <div class="champ-locked" style="margin:8px 0">
+      <img src="${favFlagUrl(team)}" alt=""><div>
+      <div class="cl-name">${esc(trName(team))}</div>
+      <div class="cl-pts">Getiri: +${pts} puan</div></div></div>
+    <p class="pop-p"><b>${esc(trName(team))}</b>'yı seçtin. Bir daha <b>değiştiremeyeceksin</b>. Seçtiğin takımın getirisi <b>+${pts} puan</b> olacak. Emin misin?</p>
+    <div class="champ-confirm">
+      <button class="pop-btn ghost" id="champNo">Hayır, geri dön</button>
+      <button class="pop-btn" id="champYes">Evet, kilitle</button>
+    </div>`);
+  $("#champNo").onclick=()=>showChampionPicker();
+  $("#champYes").onclick=()=>saveChampion(team);
+}
+async function saveChampion(team){
+  try{
+    const {error}=await sb.from("profiles").update({champion:team}).eq("id",session.user.id);
+    if(error) throw error;
+    me.champion=team;
+    const mine=profiles.find(p=>p.id===session.user.id); if(mine) mine.champion=team;
+    closePopup();
+    renderAll();
+    setTimeout(()=>showChampionPicker(), 250); // kilitli onay ekranı
+  }catch(e){ alert("Şampiyon kaydedilemedi: "+(e.message||e.error_description||e)); }
 }
 // Turnuvada desteklenen takımı seçme pop-up'ı (avatar = yuvarlak bayrak)
 function showTeamPicker(firstTime){
@@ -1582,6 +1743,33 @@ function renderAdmin(){
     </div>`;
   }).join("");
   box.querySelectorAll("[data-save]").forEach(btn=>btn.onclick=()=>adminSave(+btn.dataset.save,btn));
+  renderChampAdmin();
+}
+function renderChampAdmin(){
+  const el=$("#champAdmin"); if(!el) return;
+  const cur=appConfig.champion_winner||"";
+  const opts=`<option value="">— Henüz belli değil —</option>`+
+    CHAMPION_TEAMS.map(t=>`<option value="${esc(t)}"${t===cur?' selected':''}>${esc(trName(t))} (+${CHAMPION_POINTS[t]})</option>`).join("");
+  el.innerHTML=`
+    <h3 style="margin:22px 0 6px">🏆 Turnuva Şampiyonu (puanları dağıtır)</h3>
+    <p style="color:var(--muted);font-size:13px;max-width:640px;margin:0 0 8px">
+      Final bitince kupayı kazanan takımı seç ve kaydet. O takımı şampiyon tahmin eden herkese
+      karşısındaki puan eklenir. Boş bırakırsan şampiyon bonusu dağıtılmaz. Yanlış seçersen düzeltip tekrar kaydedebilirsin.</p>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <select id="champWinnerSel" class="tin" style="max-width:280px">${opts}</select>
+      <button class="btn gold sm" id="champWinnerSave">Kaydet</button>
+      ${cur?`<span style="font-size:12px;color:var(--gold2)">Şu an: ${esc(trName(cur))}</span>`:""}
+    </div>`;
+  $("#champWinnerSave").onclick=async()=>{
+    const val=$("#champWinnerSel").value;
+    try{
+      const { error } = await sb.from("config").upsert({key:"champion_winner", value:val||null});
+      if(error) throw error;
+      appConfig.champion_winner = val||undefined;
+      band(val?`Şampiyon: ${trName(val)} — puanlar dağıtıldı`:"Şampiyon bonusu kaldırıldı","Yönetim");
+      renderAll();
+    }catch(e){ band("Kaydedilemedi: "+((e&&e.message)||e),"Yönetim",true); }
+  };
 }
 async function adminSave(id,btn){
   const get=f=>{const el=$(`[data-id="${id}"][data-f="${f}"]`);return el?el.value.trim():null;};
@@ -1805,7 +1993,21 @@ function renderLeaderboardTab(){
 function renderAll(){
   assignColors();
   renderRibbon(); renderStageFilters(); renderGroupFilters(); renderSortFilters();
-  renderMatches(); renderMyPicks(); renderLeaderboard(); renderLeaderboardTab(); renderChart(); renderStats();
+  renderMatches(); renderMyPicks(); renderLeaderboard(); renderLeaderboardTab(); renderChart(); renderStats(); renderChampMini();
+}
+function renderChampMini(){
+  const el=$("#champMini"); if(!el) return;
+  // Seçimi ANA EKRANDA gösterme (herkes ekranına bakıyor). Sadece henüz
+  // seçmediyse ve süre açıksa "seç" çağrısı çıkar; seçtiyse kart gizlenir.
+  if(me && !me.champion && championOpen()){
+    el.classList.remove("hidden");
+    el.innerHTML=`<div class="ph"><span class="ico">🏆</span><h3>Şampiyon Tahmini</h3></div>
+      <button class="champ-mini-cta" id="champMiniBtn">Şampiyonu seç → <span class="cm-dl">son: ${esc(championDeadlineStr())}</span></button>`;
+    $("#champMiniBtn").onclick=()=>showChampionPicker();
+  } else {
+    el.classList.add("hidden");
+    el.innerHTML="";
+  }
 }
 async function enterApp(){
   show($("#authScreen"),false); show($("#setupScreen"),false); show($("#appScreen"),true);
