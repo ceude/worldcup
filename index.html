@@ -347,6 +347,13 @@ nav.tabs button:hover{color:var(--ink)}
 .prof-champ .pc-won{font-weight:800;color:var(--gold);font-size:13px}
 .prof-champ .pc-lock,.prof-champ .pc-lost{color:var(--muted)}
 .prof-champ.empty{background:#13231a}
+/* Profil içi desteklenen takım */
+.prof-fav{display:flex;align-items:center;gap:12px;margin:14px 18px 0;padding:11px 14px;
+  background:var(--panel);border:1px solid var(--line);border-radius:13px}
+.prof-fav img{width:36px;height:27px;object-fit:cover;border-radius:5px;box-shadow:0 2px 6px rgba(0,0,0,.4);flex:0 0 auto}
+.prof-fav .pf-info{flex:1;min-width:0}
+.prof-fav .pf-lab{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+.prof-fav .pf-name{font-weight:800;font-size:15px;color:#fff;margin-top:1px}
 .lbinfo{flex:1;min-width:0}
 .lbinfo .nm{font-weight:700;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lbinfo .st{font-size:11px;color:var(--muted);font-weight:600}
@@ -553,7 +560,7 @@ nav.tabs button:hover{color:var(--ink)}
     <div class="tag">TAHMİN LİGİ · STADE</div>
     <div class="autherr" id="authErr"></div>
     <div class="field"><label>Kullanıcı adı</label>
-      <input id="auUser" autocomplete="username" placeholder="ör. can" maxlength="24"></div>
+      <input id="auUser" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="ör. can" maxlength="24"></div>
     <div class="field"><label>Şifre</label>
       <input id="auPass" type="password" autocomplete="current-password" placeholder="••••••••"></div>
     <button class="authbtn" id="auBtn">Giriş yap</button>
@@ -1394,11 +1401,29 @@ function openProfile(uid){
     </div><button class="btn gold sm" id="profChampBtn">Seç</button></div>`;
   }
 
+  // Desteklenen takım (sadece kendi profilinde, değiştirme butonuyla)
+  let favBlock="";
+  if(isSelf){
+    if(prof.fav_team){
+      favBlock=`<div class="prof-fav">
+        <img src="${favFlagUrl(prof.fav_team)}" alt="">
+        <div class="pf-info"><div class="pf-lab">Desteklediğin takım</div>
+          <div class="pf-name">${esc(trName(prof.fav_team))}</div></div>
+        <button class="btn ghost sm" id="profFavBtn">Değiştir</button></div>`;
+    } else {
+      favBlock=`<div class="prof-fav empty">
+        <div class="pf-info"><div class="pf-lab">Desteklediğin takım</div>
+          <div class="pf-name" style="font-size:13px;color:var(--muted)">Henüz seçmedin</div></div>
+        <button class="btn gold sm" id="profFavBtn">Seç</button></div>`;
+    }
+  }
+
   $("#modalCard").innerHTML=`
-    <div class="mh"><div class="av">${esc(initials(prof.username))}</div>
+    <div class="mh"><div class="av${prof.fav_team?' flag':''}">${avatarInner(prof.username, prof.fav_team)}</div>
       <div><h3>${esc(prof.username)}</h3>
         <div class="s">${t.pts} puan · ${t.exact} tam skor · ${t.outc} doğru sonuç · ${t.picks} tahmin</div></div>
       <button class="x" id="mClose">✕</button></div>
+    ${favBlock}
     ${champBlock}
     <div class="legend">
       <span><i class="lg-e"></i> Skoru tam bildi (+100)</span>
@@ -1409,6 +1434,7 @@ function openProfile(uid){
   $("#modal").classList.add("show");
   $("#mClose").onclick=closeModal;
   const pcb=$("#profChampBtn"); if(pcb) pcb.onclick=()=>{ closeModal(); showChampionPicker(); };
+  const pfb=$("#profFavBtn"); if(pfb) pfb.onclick=()=>{ closeModal(); showTeamPicker(false); };
 }
 function closeModal(){ $("#modal").classList.remove("show"); }
 
@@ -2037,9 +2063,9 @@ async function enterApp(){
   $("#meName").textContent=me.username;
   $("#meAv").innerHTML=avatarInner(me.username, me.fav_team);
   $("#meAv").classList.toggle("flag", !!me.fav_team);
-  $("#meAv").title="Takımını seç / değiştir";
+  $("#meAv").title="Profilini gör";
   $("#meAv").style.cursor="pointer";
-  $("#meAv").onclick=()=>showTeamPicker(false);
+  $("#meAv").onclick=()=>openProfile(session.user.id);
   show($("#adminTab"),!!me.is_admin);
   // Son aktiflik zamanını güncelle (hata olursa sessizce geç — kolon yoksa app çökmesin)
   try{ await sb.from("profiles").update({last_active:new Date().toISOString()}).eq("id",session.user.id); }catch(e){}
@@ -2074,6 +2100,12 @@ function startLivePolling(){
 
 function bindStaticUI(){
   $("#auBtn").onclick=doAuth;
+  // Kullanıcı adını yazarken anında küçük harfe çevir (kayıt da küçük tutuluyor)
+  $("#auUser").addEventListener("input",e=>{
+    const s=e.target.selectionStart, lo=e.target.value.toLowerCase();
+    if(e.target.value!==lo){ e.target.value=lo; try{e.target.setSelectionRange(s,s);}catch(_){} }
+  });
+  $("#auUser").addEventListener("keydown",e=>{ if(e.key==="Enter") doAuth(); });
   $("#auPass").addEventListener("keydown",e=>{ if(e.key==="Enter") doAuth(); });
   setRegister(false);
   $("#logoutBtn").onclick=async()=>{ await sb.auth.signOut(); location.reload(); };
