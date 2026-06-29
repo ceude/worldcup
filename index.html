@@ -788,6 +788,27 @@ const CHAMPION_TEAMS = Object.keys(CHAMPION_POINTS)
   .sort((a,b)=> (CHAMPION_POINTS[a]-CHAMPION_POINTS[b]) || (TR[a]||a).localeCompare(TR[b]||b,"tr"));
 const CHAMPION_DEADLINE = new Date(berlinInputToUTCISO("2026-06-30T19:00")); // son seçim
 const championOpen = () => Date.now() < CHAMPION_DEADLINE.getTime();
+
+// Şampiyon seçimini DB'de okunamaz tutmak için basit geri-çevrilebilir kodlama
+// (Supabase tablosuna bakınca ülke adı görünmesin diye. Kriptografik gizlilik değildir.)
+const CHAMP_KEY = "wc2026-champ-x7";
+function encChampion(team){
+  if(!team) return null;
+  const bytes = new TextEncoder().encode(team);
+  let bin="";
+  for(let i=0;i<bytes.length;i++) bin += String.fromCharCode(bytes[i] ^ CHAMP_KEY.charCodeAt(i%CHAMP_KEY.length));
+  return "e1:"+btoa(bin);
+}
+function decChampion(code){
+  if(!code) return null;
+  if(code.indexOf("e1:")!==0) return code; // düz kayıt varsa olduğu gibi
+  try{
+    const bin=atob(code.slice(3)); const bytes=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i) ^ CHAMP_KEY.charCodeAt(i%CHAMP_KEY.length);
+    const t=new TextDecoder().decode(bytes);
+    return CHAMPION_POINTS[t]!=null ? t : null;
+  }catch(e){ return null; }
+}
 // Açıklama cümlesi için doğal tur ifadesi
 const STAGE_PHRASE = {
   group:"Grup aşamasında", r32:"Son 32 turunda", r16:"Son 16 turunda",
@@ -960,6 +981,7 @@ async function loadProfile(){
     const r=await sb.from("profiles").select("*").eq("id",session.user.id).maybeSingle();
     me=r.data;
   }
+  if(me) me.champion = decChampion(me.champion); // DB'de kodlu → bellekte düz takım adı
 }
 async function loadAll(){
   const [mq,pq,allq,cntq]=await Promise.all([
@@ -977,6 +999,7 @@ async function loadAll(){
   predsMine={}; (pq.data||[]).forEach(p=>predsMine[p.match_id]=p);
   predsAll = allq.data||[];
   profiles = profq.data||[];
+  profiles.forEach(p=>{ p.champion = decChampion(p.champion); }); // kodlu → düz
   predCounts={}; if(!cntq.error) (cntq.data||[]).forEach(r=>predCounts[r.user_id]=Number(r.cnt));
   appConfig={}; if(!cfgq.error) (cfgq.data||[]).forEach(r=>appConfig[r.key]=r.value);
 }
@@ -1596,7 +1619,7 @@ function confirmChampion(team){
 }
 async function saveChampion(team){
   try{
-    const {error}=await sb.from("profiles").update({champion:team}).eq("id",session.user.id);
+    const {error}=await sb.from("profiles").update({champion:encChampion(team)}).eq("id",session.user.id);
     if(error) throw error;
     me.champion=team;
     const mine=profiles.find(p=>p.id===session.user.id); if(mine) mine.champion=team;
