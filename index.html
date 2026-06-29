@@ -786,7 +786,7 @@ const CHAMPION_POINTS = {
 };
 const CHAMPION_TEAMS = Object.keys(CHAMPION_POINTS)
   .sort((a,b)=> (CHAMPION_POINTS[a]-CHAMPION_POINTS[b]) || (TR[a]||a).localeCompare(TR[b]||b,"tr"));
-const CHAMPION_DEADLINE = new Date(berlinInputToUTCISO("2026-06-29T19:00")); // son seçim
+const CHAMPION_DEADLINE = new Date(berlinInputToUTCISO("2026-06-30T19:00")); // son seçim
 const championOpen = () => Date.now() < CHAMPION_DEADLINE.getTime();
 // Açıklama cümlesi için doğal tur ifadesi
 const STAGE_PHRASE = {
