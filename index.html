@@ -1616,8 +1616,8 @@ function maybeShowOpeningPopup(){
 }
 // Ödül havuzu (5€) hatırlatma pop-up'ı — şık, tatlı, rahatsız etmeyen
 function showPrizePopup(){
-  const ball="https://assets.adidas.com/images/w_500,f_auto,q_auto/da13fc00f4c04adea8ce517804ec8bd3_9366/FIFA_World_Cup_26tm_League_Ball_Box_Weiss_JD8045_01_00_standard.jpg";
-  const url="https://www.adidas.de/fifa-fussball-weltmeisterschaft-26-trionda-league-ball/JD8030.html";
+  const ball="https://assets.adidas.com/images/w_500,f_auto,q_auto/3f6dcc811fbe49a38397134fbfc5c3f9_9366/Trionda_FIFA_Fussball-Weltmeisterschaft_26tm_Trainingsball_Weiss_JD8032_01_00_standard.jpg";
+  const url="https://www.adidas.de/trionda-fifa-fussball-weltmeisterschaft-26-trainingsball/JD8032.html";
   showPopup(`
     <button class="x" id="popupClose">✕</button>
     <a class="prize-ball" href="${url}" target="_blank" rel="noopener" title="Ödülü gör">
@@ -1628,6 +1628,10 @@ function showPrizePopup(){
       <b>adidas FIFA Dünya Kupası 26 League</b> futbol topu hediye! ⚽</p>
     <a class="prize-link" href="${url}" target="_blank" rel="noopener">🎁 Ödülü gör →</a>
     <button class="pop-btn" id="popupClose2">Tamam 👍</button>`);
+  // Linki JS ile aç: arka plana sıçramayı engelle, yeni sekmeye URL'yi garanti ver (about:blank sorunu çözümü)
+  document.querySelectorAll(".prize-ball, .prize-link").forEach(a=>{
+    a.addEventListener("click",e=>{ e.preventDefault(); e.stopPropagation(); window.open(url,"_blank","noopener"); });
+  });
 }
 
 // ===== ŞAMPİYON TAHMİNİ POP-UP'I =====
