@@ -355,7 +355,7 @@ nav.tabs button:hover{color:var(--ink)}
 .prof-fav .pf-lab{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px}
 .prof-fav .pf-name{font-weight:800;font-size:15px;color:#fff;margin-top:1px}
 /* Ödül havuzu pop-up'ı */
-.prize-ball{display:block;width:150px;height:150px;margin:2px auto 8px;border-radius:18px;overflow:hidden;
+.prize-ball{display:block;clear:both;width:150px;height:150px;margin:2px auto 8px;border-radius:18px;overflow:hidden;
   background:radial-gradient(circle at 50% 40%, #ffffff, #e9eef0);box-shadow:0 12px 30px -10px rgba(0,0,0,.5);
   border:1px solid var(--line2);transition:transform .15s}
 .prize-ball:hover{transform:scale(1.03)}
@@ -1617,7 +1617,7 @@ function maybeShowOpeningPopup(){
 // Ödül havuzu (5€) hatırlatma pop-up'ı — şık, tatlı, rahatsız etmeyen
 function showPrizePopup(){
   const ball="https://assets.adidas.com/images/w_500,f_auto,q_auto/da13fc00f4c04adea8ce517804ec8bd3_9366/FIFA_World_Cup_26tm_League_Ball_Box_Weiss_JD8045_01_00_standard.jpg";
-  const url="https://www.adidas.de/fifa-world-cup-26-league--ball-box/JD8045.html";
+  const url="https://www.adidas.de/fifa-fussball-weltmeisterschaft-26-trionda-league-ball/JD8030.html";
   showPopup(`
     <button class="x" id="popupClose">✕</button>
     <a class="prize-ball" href="${url}" target="_blank" rel="noopener" title="Ödülü gör">
