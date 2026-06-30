@@ -435,6 +435,30 @@ nav.tabs button:hover{color:var(--ink)}
   border-left:3px solid var(--gold);border-radius:12px;padding:12px 15px;margin:0 0 16px;font-size:13.5px;color:#dceae0;line-height:1.5}
 .stageinfo b{color:var(--gold2)}
 .stageinfo .sub{margin-top:6px;font-size:12px;color:var(--muted);font-weight:600}
+/* Dinamik skor puanlaması — banner, kart satırı, info butonu, tablo, admin textarea */
+.stageinfo.dyn{border-left-color:#ffd84d;background:linear-gradient(180deg,#1b2410,#12190b)}
+.dyn-head{display:flex;align-items:center;gap:8px;font-weight:900;letter-spacing:.5px;color:#ffe27a;
+  font-size:13.5px;margin-bottom:6px;animation:dynBlink 1.1s ease-in-out infinite}
+.dyn-dot{width:9px;height:9px;border-radius:50%;background:#ffd84d;box-shadow:0 0 8px #ffd84d}
+@keyframes dynBlink{0%,100%{opacity:1}50%{opacity:.35}}
+.scorebox-wrap{display:flex;flex-direction:column;align-items:center;gap:5px}
+.dynpts{font-size:11.5px;color:var(--gold2);font-weight:700;min-height:14px;text-align:center;line-height:1.3}
+.dynpts b{color:#fff}
+.odds-info{display:inline-flex;align-items:center;gap:5px;margin-top:9px;background:#1b2410;color:#ffe27a;
+  border:1px solid rgba(255,216,77,.4);border-radius:9px;padding:7px 11px;font-size:12px;font-weight:800;cursor:pointer;width:100%;justify-content:center}
+.odds-info:hover{background:#232e15}
+.odds-tablewrap{max-height:46vh;overflow:auto;border:1px solid var(--line2);border-radius:10px;margin:2px 0 12px}
+.odds-table{width:100%;border-collapse:collapse;font-size:13.5px}
+.odds-table th{position:sticky;top:0;background:#13241a;color:var(--gold2);font-size:11.5px;text-transform:uppercase;
+  letter-spacing:.4px;padding:8px 10px;text-align:left;z-index:1}
+.odds-table td{padding:7px 10px;border-top:1px solid var(--line)}
+.odds-table td:nth-child(2){color:var(--muted)}
+.odds-table td:last-child b{color:#fff}
+.odds-table tr.other td{background:#231a0e;color:#ffd84d;border-top:2px solid rgba(255,216,77,.4)}
+.odds-table tr.other td b{color:#ffe27a}
+.odds-textarea{width:100%;min-height:200px;resize:vertical;background:#0c1611;border:1px solid var(--line2);
+  border-radius:10px;color:#eaf3ee;font:13px/1.5 monospace;padding:10px;box-sizing:border-box}
+.pop-btn.ghost{background:transparent;border:1px solid var(--line2);color:var(--ink)}
 .scoretable{width:100%;border-collapse:collapse;margin:6px 0 4px;font-size:14px}
 .scoretable th,.scoretable td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line)}
 .scoretable thead th{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);font-weight:800}
@@ -926,12 +950,50 @@ function berlinInputToUTCISO(dtLocalStr){
 /* ====================================================================
    5) PUANLAMA
    ==================================================================== */
+// Dinamik (iddia-bazlı) skor puanlaması — sadece eleme turları
+const DYNAMIC_STAGES = new Set(["r16","qf","sf","third","final"]);
+const STAGE_BASE_BONUS = { r16:90, qf:100, sf:120, third:120, final:120 };
+const DYN_CAP = 300;      // en yüksek oranlı skorun bonus tavanı
+const DYN_OTHER = 350;    // listede olmayan skor (en sürpriz)
+const r10 = x => Math.round(x/10)*10;
+
+function parseOdds(text){
+  // "0-0 7.28", "0-07.28", satır/virgül karışık — hepsini yakala. "Diğer" yok sayılır.
+  const out={};
+  const re=/([0-9])\s*-\s*([0-9])\s*\$?\s*([0-9]+(?:[.,][0-9]+)?)/g;
+  let m;
+  while((m=re.exec(text))!==null){
+    const key=`${m[1]}-${m[2]}`;
+    const odd=parseFloat(m[3].replace(",","."));
+    if(odd>0) out[key]=odd;
+  }
+  return out;
+}
+function oddsOf(m){
+  if(!m || !m.score_odds) return null;
+  try{ const o=(typeof m.score_odds==="string")?JSON.parse(m.score_odds):m.score_odds;
+       return (o && Object.keys(o).length)?o:null; }catch(e){ return null; }
+}
+// Bir skor için dinamik bonus (eleme turu + oran girilmişse). Yoksa null.
+function dynamicBonus(m, scoreKey){
+  if(!DYNAMIC_STAGES.has(m.stage)) return null;
+  const odds=oddsOf(m); if(!odds) return null;
+  const B=STAGE_BASE_BONUS[m.stage]||90;
+  const vals=Object.values(odds); const lo=Math.min(...vals), hi=Math.max(...vals);
+  if(!(scoreKey in odds)) return DYN_OTHER;     // listede yok → en yüksek
+  if(hi<=lo) return B;
+  return r10(B + (odds[scoreKey]-lo)/(hi-lo)*(DYN_CAP-B));
+}
 function grade(pred, m){
   if(m.home_score==null || m.away_score==null) return null; // skor yoksa puanlanmaz (biten + canlı dahil)
   if(!pred) return {pts:0,type:"none"};
   const sc=scoringFor(m.stage);
   const exact = pred.home===m.home_score && pred.away===m.away_score;
-  if(exact) return {pts:sc.exact,type:"exact"};
+  if(exact){
+    const dyn=dynamicBonus(m, `${m.home_score}-${m.away_score}`);
+    if(dyn!=null) return {pts:sc.outc+dyn, type:"exact"};
+    return {pts:sc.exact,type:"exact"};
+  }
   const so=Math.sign(pred.home-pred.away), ao=Math.sign(m.home_score-m.away_score);
   if(so===ao) return {pts:sc.outc,type:"outc"};
   return {pts:0,type:"bad"};
@@ -1070,10 +1132,14 @@ function matchCard(m){
     const hv=pred?pred.home:"", av=pred?pred.away:"";
     const dis=locked?"disabled":"";
     const act=pred?"act":"";
-    center=`<div class="scorebox">
-      <input class="si ${act}" data-m="${m.id}" data-side="h" type="number" min="0" max="99" inputmode="numeric" value="${hv}" ${dis}>
-      <span class="dash">–</span>
-      <input class="si ${act}" data-m="${m.id}" data-side="a" type="number" min="0" max="99" inputmode="numeric" value="${av}" ${dis}>
+    const dp = (DYNAMIC_STAGES.has(m.stage)&&oddsOf(m)) ? dynPtsLine(m, hv, av) : "";
+    center=`<div class="scorebox-wrap">
+      <div class="scorebox">
+        <input class="si ${act}" data-m="${m.id}" data-side="h" type="number" min="0" max="99" inputmode="numeric" value="${hv}" ${dis}>
+        <span class="dash">–</span>
+        <input class="si ${act}" data-m="${m.id}" data-side="a" type="number" min="0" max="99" inputmode="numeric" value="${av}" ${dis}>
+      </div>
+      <div class="dynpts" id="dynpts-${m.id}">${dp}</div>
     </div>`;
   }
 
@@ -1105,6 +1171,7 @@ function matchCard(m){
   }
 
   const seeAll = (fin||inplay) ? `<button class="seeall" data-allpreds="${m.id}">👁 Bu maç için herkesin tahminini gör</button>` : "";
+  const oddsInfo = (DYNAMIC_STAGES.has(m.stage)&&oddsOf(m)) ? `<button class="odds-info" data-odds="${m.id}" title="Bu maç için skor puanları">⚡ Skor puanları</button>` : "";
   return `<div class="match ${cls}">
     <div class="mtop"><span class="meta">${meta}</span>
       <span class="meta">🕑 ${fmtKick(m.kickoff)} <span style="opacity:.6">(DE)</span></span>
@@ -1115,6 +1182,7 @@ function matchCard(m){
       ${teamHTML(m.team_away,m.slot_away,"away")}
     </div>
     <div class="mfoot">${foot}</div>
+    ${oddsInfo}
     ${seeAll}
   </div>`;
 }
@@ -1135,6 +1203,18 @@ function renderStageInfo(){
   renderScoringCard();
   const sc=scoringFor(curStage), bonus=sc.exact-sc.outc;
   const phrase=STAGE_PHRASE[curStage]||"Bu turda";
+  if(DYNAMIC_STAGES.has(curStage)){
+    const base=STAGE_BASE_BONUS[curStage]||90;
+    box.innerHTML=`<div class="stageinfo dyn">
+      <div class="dyn-head"><span class="dyn-dot"></span>YENİ: DİNAMİK SKOR PUANLAMASI ⚡</div>
+      <div>🎯 ${phrase} <b>sonucu</b> (galibiyet/beraberlik) bilmek <b>${sc.outc} puan</b>.
+      <b>Tam skoru</b> bilmek ise artık sabit değil: skorun <b>iddia oranına</b> göre değişir.
+      Beklenen skorlar <b>${sc.outc}+${base}</b> puan; ne kadar <b>sürpriz</b> skor, o kadar yüksek (tam skor bonusu <b>en fazla ${DYN_CAP}</b>, listede olmayan skor <b>${DYN_OTHER}</b>).</div>
+      <div class="sub">⚡ Her maç kartındaki <b>"Skor puanları"</b> butonundan o maçın tüm skor puanlarını görebilir; skoru yazınca kazanacağın puanı anında görürsün.</div>
+      <div class="sub">⏱️ Tüm tahminler 90 dakikalık normal süre sonucuna göredir; uzatma/penaltı sayılmaz.</div>
+    </div>`;
+    return;
+  }
   box.innerHTML=`<div class="stageinfo">
     <div>🎯 ${phrase} sonucu (galibiyet veya beraberlik) bilmek <b>${sc.outc} puan</b>, skoru bilmek <b>${sc.outc}+${bonus} = ${sc.exact} puan</b> kazandırır.</div>
     <div class="sub">⏱️ Tüm tahminler 90 dakikalık normal süre sonucuna göre yapılır; uzatma ve penaltıların tahminlere etkisi yoktur.</div>
@@ -1274,7 +1354,26 @@ function bindScoreInputs(root){
       }
       clearTimeout(saveTimers[mid]);
       saveTimers[mid]=setTimeout(()=>trySave(mid,box),700);
+      updateDynPts(mid, box);
     });
+  });
+}
+// Eleme turunda yazılan skora göre "Bu skor: 50 + B = T" satırını canlı güncelle
+function dynPtsLine(m, hv, av){
+  if(hv===""||av===""||hv==null||av==null) return "";
+  if(!DYNAMIC_STAGES.has(m.stage) || !oddsOf(m)) return "";
+  const dyn=dynamicBonus(m, `${parseInt(hv,10)}-${parseInt(av,10)}`);
+  if(dyn==null) return "";
+  const sc=scoringFor(m.stage);
+  return `Bu skor için: <b>${sc.outc}</b> + <b>${dyn}</b> = <b>${sc.outc+dyn}</b> puan`;
+}
+function updateDynPts(mid, box){
+  const m=matches.find(x=>x.id===mid); if(!m) return;
+  const scope=box||document;
+  const h=scope.querySelector(`.si[data-m="${mid}"][data-side="h"]`);
+  const a=scope.querySelector(`.si[data-m="${mid}"][data-side="a"]`);
+  document.querySelectorAll(`#dynpts-${mid}`).forEach(el=>{
+    el.innerHTML = (h&&a)?dynPtsLine(m, h.value, a.value):"";
   });
 }
 async function trySave(mid,box){
@@ -1625,6 +1724,27 @@ function maybeShowOpeningPopup(){
   markStatSeen(uid,c.id);
 }
 // Ödül havuzu (5€) hatırlatma pop-up'ı — şık, tatlı, rahatsız etmeyen
+// Eleme maçı için skor → puan tablosu pop-up'ı (info butonu)
+function showOddsTable(mid){
+  const m=matches.find(x=>x.id===mid); if(!m) return;
+  const odds=oddsOf(m); if(!odds) return;
+  const sc=scoringFor(m.stage);
+  const rows=Object.keys(odds)
+    .map(k=>({k, b:dynamicBonus(m,k)}))
+    .sort((a,b)=> a.b-b.b || a.k.localeCompare(b.k));
+  const list=rows.map(r=>`<tr><td>${esc(r.k)}</td><td>${sc.outc}+${r.b}</td><td><b>${sc.outc+r.b}</b></td></tr>`).join("");
+  showPopup(`
+    <button class="x" id="popupClose">✕</button>
+    <div class="pop-ic">⚡</div>
+    <h3 class="pop-h">Skor Puanları</h3>
+    <div class="pop-res" style="font-size:16px">${esc(trName(m.team_home))} – ${esc(trName(m.team_away))}</div>
+    <p class="pop-p" style="margin:0 0 10px">Bu turda <b>sonucu</b> bilmek <b>${sc.outc}</b> puan. <b>Tam skoru</b> bilmek, skorun olasılığına (iddia oranına) göre değişir — ne kadar sürpriz skor, o kadar çok puan. Aşağıda her skorun tam-skor değeri:</p>
+    <div class="odds-tablewrap"><table class="odds-table">
+      <thead><tr><th>Skor</th><th>Hesap</th><th>Tam skor</th></tr></thead>
+      <tbody>${list}<tr class="other"><td>Diğer (listede yok)</td><td>${sc.outc}+${DYN_OTHER}</td><td><b>${sc.outc+DYN_OTHER}</b></td></tr></tbody>
+    </table></div>
+    <button class="pop-btn" id="popupClose2">Kapat</button>`);
+}
 function showPrizePopup(){
   const ball="https://assets.adidas.com/images/w_500,f_auto,q_auto/3f6dcc811fbe49a38397134fbfc5c3f9_9366/Trionda_FIFA_Fussball-Weltmeisterschaft_26tm_Trainingsball_Weiss_JD8032_01_00_standard.jpg";
   const url="https://www.adidas.de/trionda-fifa-fussball-weltmeisterschaft-26-trainingsball/JD8032.html";
@@ -1830,6 +1950,10 @@ function renderAdmin(){
       </div>`:"";
     const hn=m.team_home?trName(m.team_home):(m.slot_home||"?");
     const an=m.team_away?trName(m.team_away):(m.slot_away||"?");
+    const oddsBtn = DYNAMIC_STAGES.has(m.stage) ? `
+      <div style="margin:4px 2px 0">
+        <button class="btn ghost sm" data-oddsedit="${m.id}">⚡ Skor oranları ${oddsOf(m)?'✓':'(girilmedi)'}</button>
+      </div>`:"";
     return `<div style="margin-bottom:8px">
       <div style="font-size:11px;color:var(--muted);font-weight:700;margin:0 2px 4px">${esc(label)} · ${fmtKick(m.kickoff)} (DE)${m.finished?' · ✅ Bitti':''}</div>
       ${teamset}
@@ -1844,10 +1968,43 @@ function renderAdmin(){
         <button class="btn gold sm" data-save="${m.id}">Kaydet</button>
       </div>
       <div style="text-align:right;font-size:11px;color:var(--muted);margin:2px 4px 0">${esc(an)}</div>
+      ${oddsBtn}
     </div>`;
   }).join("");
   box.querySelectorAll("[data-save]").forEach(btn=>btn.onclick=()=>adminSave(+btn.dataset.save,btn));
+  box.querySelectorAll("[data-oddsedit]").forEach(btn=>btn.onclick=()=>showOddsEditor(+btn.dataset.oddsedit));
   renderChampAdmin();
+}
+// Admin: bir eleme maçı için iddia oranlarını yapıştır → score_odds JSON kaydet
+function showOddsEditor(mid){
+  const m=matches.find(x=>x.id===mid); if(!m) return;
+  const cur=oddsOf(m);
+  const pre=cur?Object.keys(cur).map(k=>`${k} ${cur[k]}`).join("\n"):"";
+  showPopup(`
+    <button class="x" id="popupClose">✕</button>
+    <div class="pop-ic">⚡</div>
+    <h3 class="pop-h">Skor Oranları</h3>
+    <div class="pop-res" style="font-size:15px">${esc(trName(m.team_home)||m.slot_home||"?")} – ${esc(trName(m.team_away)||m.slot_away||"?")}</div>
+    <p class="pop-p" style="margin:0 0 8px">İddia sitesindeki "Doğru Skor" listesini buraya yapıştır (her satır: <b>skor oran</b>, örn. <code>1-0 9.70</code>). "Diğer/Any other" satırını koymana gerek yok. Kaydedince puanlar otomatik hesaplanır.</p>
+    <textarea id="oddsText" class="odds-textarea" placeholder="0-0 7.28&#10;0-1 5.09&#10;1-0 9.70&#10;...">${esc(pre)}</textarea>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="pop-btn ghost" id="oddsClear">Temizle</button>
+      <button class="pop-btn" id="oddsSave">Kaydet</button>
+    </div>`);
+  $("#oddsClear").onclick=()=>{ $("#oddsText").value=""; };
+  $("#oddsSave").onclick=async()=>{
+    const parsed=parseOdds($("#oddsText").value);
+    const n=Object.keys(parsed).length;
+    try{
+      const val = n? JSON.stringify(parsed) : null;
+      const {error}=await sb.from("matches").update({score_odds:val}).eq("id",mid);
+      if(error) throw error;
+      m.score_odds=val;
+      closePopup();
+      band(n?`${n} skor oranı kaydedildi`:"Oranlar temizlendi","Yönetim");
+      renderAdmin(); renderMatches();
+    }catch(e){ band("Kaydedilemedi: "+((e&&e.message)||e),"Yönetim",true); }
+  };
 }
 function renderChampAdmin(){
   const el=$("#champAdmin"); if(!el) return;
@@ -2227,6 +2384,7 @@ function bindStaticUI(){
   $("#modal").addEventListener("click",e=>{ if(e.target.id==="modal") closeModal(); });
   $("#popup").addEventListener("click",e=>{ if(e.target.id==="popup") closePopup(); });
   document.addEventListener("click",e=>{ const b=e.target.closest("[data-allpreds]"); if(b) openMatchPreds(+b.dataset.allpreds); });
+  document.addEventListener("click",e=>{ const b=e.target.closest("[data-odds]"); if(b) showOddsTable(+b.dataset.odds); });
   document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ closeModal(); closePopup(); } });
 }
 
