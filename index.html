@@ -354,6 +354,22 @@ nav.tabs button:hover{color:var(--ink)}
 .prof-fav .pf-info{flex:1;min-width:0}
 .prof-fav .pf-lab{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px}
 .prof-fav .pf-name{font-weight:800;font-size:15px;color:#fff;margin-top:1px}
+/* Ödül havuzu pop-up'ı */
+.prize-ball{display:block;width:150px;height:150px;margin:2px auto 8px;border-radius:18px;overflow:hidden;
+  background:radial-gradient(circle at 50% 40%, #ffffff, #e9eef0);box-shadow:0 12px 30px -10px rgba(0,0,0,.5);
+  border:1px solid var(--line2);transition:transform .15s}
+.prize-ball:hover{transform:scale(1.03)}
+.prize-ball img{width:100%;height:100%;object-fit:contain;display:block}
+.prize-link{display:inline-block;margin:2px 0 14px;color:var(--gold);font-weight:800;font-size:14px;text-decoration:none;
+  border-bottom:1px dashed rgba(212,175,55,.5);padding-bottom:1px}
+.prize-link:hover{color:var(--gold2)}
+/* Admin: ödeyenler chip listesi */
+.paid-chips{display:flex;flex-wrap:wrap;gap:7px}
+.paid-chip{display:inline-flex;align-items:center;gap:6px;background:#13261c;border:1px solid var(--line2);
+  border-radius:999px;padding:5px 6px 5px 12px;font-size:13px;font-weight:700;color:var(--ink)}
+.paid-chip button{background:#21402e;border:none;color:#bfe9cf;width:20px;height:20px;border-radius:50%;
+  cursor:pointer;font-size:12px;line-height:1}
+.paid-chip button:hover{background:var(--bad);color:#fff}
 .lbinfo{flex:1;min-width:0}
 .lbinfo .nm{font-weight:700;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lbinfo .st{font-size:11px;color:var(--muted);font-weight:600}
@@ -687,6 +703,7 @@ nav.tabs button:hover{color:var(--ink)}
         <div class="filters" id="adminStageFilters"></div>
         <div id="adminList"></div>
         <div class="champ-admin" id="champAdmin"></div>
+        <div class="prize-admin" id="prizeAdmin"></div>
       </section>
     </main>
 
@@ -1576,9 +1593,14 @@ function renderStats(){
     const c=statCardList[+b.dataset.statidx]; if(c) showStatPopup(c);
   });
 }
+function paidSet(){
+  try{ return new Set(JSON.parse(appConfig.paid_users||"[]")); }catch(e){ return new Set(); }
+}
 function maybeShowOpeningPopup(){
-  // En önce: Şampiyon tahmini (seçmemişse ve süre dolmadıysa) her açılışta çıksın
+  // 1) En önce: Şampiyon tahmini (seçmemişse ve süre dolmadıysa)
   if(me && !me.champion && championOpen()){ showChampionPicker(); return; }
+  // 2) İkinci öncelik: Şampiyon seçmiş ama ödül havuzuna katkıyı (5€) henüz yapmamışsa
+  if(me && me.champion && !paidSet().has(session.user.id)){ showPrizePopup(); return; }
   // Sonra: turnuvada desteklediği takımı seçmemişse takım seçimi
   if(me && !me.fav_team){ showTeamPicker(true); return; }
   const open=myOpenUnpredicted();
@@ -1591,6 +1613,21 @@ function maybeShowOpeningPopup(){
   const c=cands[Math.floor(Math.random()*cands.length)];
   showStatPopup(c);
   markStatSeen(uid,c.id);
+}
+// Ödül havuzu (5€) hatırlatma pop-up'ı — şık, tatlı, rahatsız etmeyen
+function showPrizePopup(){
+  const ball="https://assets.adidas.com/images/w_500,f_auto,q_auto/da13fc00f4c04adea8ce517804ec8bd3_9366/FIFA_World_Cup_26tm_League_Ball_Box_Weiss_JD8045_01_00_standard.jpg";
+  const url="https://www.adidas.de/fifa-world-cup-26-league--ball-box/JD8045.html";
+  showPopup(`
+    <button class="x" id="popupClose">✕</button>
+    <a class="prize-ball" href="${url}" target="_blank" rel="noopener" title="Ödülü gör">
+      <img src="${ball}" alt="adidas FIFA World Cup 26 League topu" loading="lazy"></a>
+    <h3 class="pop-h">Ödül Havuzu 🏆</h3>
+    <p class="pop-p">Turnuva katılımı için <b>5 €</b>'unu <b>Cost odasına</b> bırakmayı unutma 🙌<br>
+      Havuzda biriken bedelle birinciye, turnuva ödülü olarak resmi
+      <b>adidas FIFA Dünya Kupası 26 League</b> futbol topu hediye! ⚽</p>
+    <a class="prize-link" href="${url}" target="_blank" rel="noopener">🎁 Ödülü gör →</a>
+    <button class="pop-btn" id="popupClose2">Tamam 👍</button>`);
 }
 
 // ===== ŞAMPİYON TAHMİNİ POP-UP'I =====
@@ -1822,6 +1859,46 @@ function renderChampAdmin(){
       renderAll();
     }catch(e){ band("Kaydedilemedi: "+((e&&e.message)||e),"Yönetim",true); }
   };
+  renderPrizeAdmin();
+}
+function renderPrizeAdmin(){
+  const el=$("#prizeAdmin"); if(!el) return;
+  const paid=paidSet();
+  const players=profiles.filter(p=>!isHiddenUser(p.username))
+    .sort((a,b)=>a.username.localeCompare(b.username,"tr"));
+  const notPaid=players.filter(p=>!paid.has(p.id));
+  const addOpts=`<option value="">— Ödeyeni seç —</option>`+
+    notPaid.map(p=>`<option value="${p.id}">${esc(p.username)}</option>`).join("");
+  const paidList=players.filter(p=>paid.has(p.id));
+  const chips = paidList.length
+    ? paidList.map(p=>`<span class="paid-chip">${esc(p.username)} <button data-rm="${p.id}" title="Listeden çıkar">✕</button></span>`).join("")
+    : `<span style="color:var(--muted);font-size:13px">Henüz kimse eklenmedi.</span>`;
+  el.innerHTML=`
+    <h3 style="margin:22px 0 6px">💶 Ödül Havuzu — 5€ Ödeyenler</h3>
+    <p style="color:var(--muted);font-size:13px;max-width:640px;margin:0 0 8px">
+      5€'unu teslim edeni listeye ekle. Listedeki kişilere ödeme hatırlatma pop-up'ı <b>gösterilmez</b>.
+      (Liste kimseye görünmez, sadece sende.)</p>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+      <select id="paidSel" class="tin" style="max-width:220px">${addOpts}</select>
+      <button class="btn gold sm" id="paidAdd">Ekle</button>
+    </div>
+    <div class="paid-chips">${chips}</div>`;
+  $("#paidAdd").onclick=async()=>{
+    const id=$("#paidSel").value; if(!id) return;
+    const s=paidSet(); s.add(id); await savePaid([...s]);
+  };
+  el.querySelectorAll("[data-rm]").forEach(b=>b.onclick=async()=>{
+    const s=paidSet(); s.delete(b.dataset.rm); await savePaid([...s]);
+  });
+}
+async function savePaid(ids){
+  try{
+    const { error } = await sb.from("config").upsert({key:"paid_users", value:JSON.stringify(ids)});
+    if(error) throw error;
+    appConfig.paid_users = JSON.stringify(ids);
+    renderPrizeAdmin();
+    band("Ödül havuzu listesi güncellendi","Yönetim");
+  }catch(e){ band("Kaydedilemedi: "+((e&&e.message)||e),"Yönetim",true); }
 }
 async function adminSave(id,btn){
   const get=f=>{const el=$(`[data-id="${id}"][data-f="${f}"]`);return el?el.value.trim():null;};
