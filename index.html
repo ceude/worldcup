@@ -370,6 +370,16 @@ nav.tabs button:hover{color:var(--ink)}
 .paid-chip button{background:#21402e;border:none;color:#bfe9cf;width:20px;height:20px;border-radius:50%;
   cursor:pointer;font-size:12px;line-height:1}
 .paid-chip button:hover{background:var(--bad);color:#fff}
+/* Ödeme mesajı aç/kapa */
+.prize-toggle{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
+  background:var(--panel);border:1px solid var(--line2);border-radius:13px;padding:12px 15px;max-width:640px;margin-bottom:4px}
+.prize-switch{display:inline-flex;align-items:center;gap:9px;background:#2a2118;border:1px solid var(--line2);
+  border-radius:999px;padding:5px 14px 5px 6px;cursor:pointer;flex:0 0 auto}
+.prize-switch .ps-knob{width:20px;height:20px;border-radius:50%;background:var(--muted);transition:all .15s}
+.prize-switch .ps-lab{font-weight:800;font-size:12px;letter-spacing:.5px;color:var(--muted)}
+.prize-switch.on{background:#15301f;border-color:rgba(212,175,55,.5)}
+.prize-switch.on .ps-knob{background:var(--gold);box-shadow:0 0 8px rgba(212,175,55,.6)}
+.prize-switch.on .ps-lab{color:var(--gold)}
 .lbinfo{flex:1;min-width:0}
 .lbinfo .nm{font-weight:700;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lbinfo .st{font-size:11px;color:var(--muted);font-weight:600}
@@ -810,7 +820,7 @@ const CHAMPION_POINTS = {
 };
 const CHAMPION_TEAMS = Object.keys(CHAMPION_POINTS)
   .sort((a,b)=> (CHAMPION_POINTS[a]-CHAMPION_POINTS[b]) || (TR[a]||a).localeCompare(TR[b]||b,"tr"));
-const CHAMPION_DEADLINE = new Date(berlinInputToUTCISO("2026-06-30T19:00")); // son seçim
+const CHAMPION_DEADLINE = new Date(berlinInputToUTCISO("2026-06-30T23:00")); // son seçim
 const championOpen = () => Date.now() < CHAMPION_DEADLINE.getTime();
 
 // Şampiyon seçimini DB'de okunamaz tutmak için basit geri-çevrilebilir kodlama
@@ -1599,8 +1609,8 @@ function paidSet(){
 function maybeShowOpeningPopup(){
   // 1) En önce: Şampiyon tahmini (seçmemişse ve süre dolmadıysa)
   if(me && !me.champion && championOpen()){ showChampionPicker(); return; }
-  // 2) İkinci öncelik: Şampiyon seçmiş ama ödül havuzuna katkıyı (5€) henüz yapmamışsa
-  if(me && me.champion && !paidSet().has(session.user.id)){ showPrizePopup(); return; }
+  // 2) İkinci öncelik: Ödül havuzu mesajı AÇIK ise, şampiyon seçmiş ama henüz ödememişe göster
+  if(me && me.champion && appConfig.prize_on==="1" && !paidSet().has(session.user.id)){ showPrizePopup(); return; }
   // Sonra: turnuvada desteklediği takımı seçmemişse takım seçimi
   if(me && !me.fav_team){ showTeamPicker(true); return; }
   const open=myOpenUnpredicted();
@@ -1868,6 +1878,7 @@ function renderChampAdmin(){
 }
 function renderPrizeAdmin(){
   const el=$("#prizeAdmin"); if(!el) return;
+  const on = appConfig.prize_on==="1";
   const paid=paidSet();
   const players=profiles.filter(p=>!isHiddenUser(p.username))
     .sort((a,b)=>a.username.localeCompare(b.username,"tr"));
@@ -1880,7 +1891,14 @@ function renderPrizeAdmin(){
     : `<span style="color:var(--muted);font-size:13px">Henüz kimse eklenmedi.</span>`;
   el.innerHTML=`
     <h3 style="margin:22px 0 6px">💶 Ödül Havuzu — 5€ Ödeyenler</h3>
-    <p style="color:var(--muted);font-size:13px;max-width:640px;margin:0 0 8px">
+    <div class="prize-toggle">
+      <div><b>Ödeme hatırlatma pop-up'ı</b><br>
+        <span style="font-size:12px;color:var(--muted)">Kapalıyken kimseye gösterilmez. Açıkken, ödememiş (listede olmayan) kişilere çıkar.</span></div>
+      <button class="prize-switch ${on?'on':''}" id="prizeToggle" role="switch" aria-checked="${on}">
+        <span class="ps-knob"></span><span class="ps-lab">${on?'AÇIK':'KAPALI'}</span>
+      </button>
+    </div>
+    <p style="color:var(--muted);font-size:13px;max-width:640px;margin:8px 0 8px">
       5€'unu teslim edeni listeye ekle. Listedeki kişilere ödeme hatırlatma pop-up'ı <b>gösterilmez</b>.
       (Liste kimseye görünmez, sadece sende.)</p>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
@@ -1888,6 +1906,16 @@ function renderPrizeAdmin(){
       <button class="btn gold sm" id="paidAdd">Ekle</button>
     </div>
     <div class="paid-chips">${chips}</div>`;
+  $("#prizeToggle").onclick=async()=>{
+    const next = on ? "0" : "1";
+    try{
+      const { error } = await sb.from("config").upsert({key:"prize_on", value:next});
+      if(error) throw error;
+      appConfig.prize_on = next;
+      band(next==="1"?"Ödeme mesajı AÇILDI":"Ödeme mesajı KAPATILDI","Yönetim");
+      renderPrizeAdmin();
+    }catch(e){ band("Kaydedilemedi: "+((e&&e.message)||e),"Yönetim",true); }
+  };
   $("#paidAdd").onclick=async()=>{
     const id=$("#paidSel").value; if(!id) return;
     const s=paidSet(); s.add(id); await savePaid([...s]);
