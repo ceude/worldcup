@@ -1628,9 +1628,10 @@ function showPrizePopup(){
       <b>adidas FIFA Dünya Kupası 26 League</b> futbol topu hediye! ⚽</p>
     <a class="prize-link" href="${url}" target="_blank" rel="noopener">🎁 Ödülü gör →</a>
     <button class="pop-btn" id="popupClose2">Tamam 👍</button>`);
-  // Linki JS ile aç: arka plana sıçramayı engelle, yeni sekmeye URL'yi garanti ver (about:blank sorunu çözümü)
+  // Linki tarayıcının kendisi açsın (referrer doğal gitsin; adidas bot-koruması 403 vermesin).
+  // Sadece tıklamanın arka plana sıçrayıp pop-up'ı kapatmasını engelliyoruz; gezinmeye dokunmuyoruz.
   document.querySelectorAll(".prize-ball, .prize-link").forEach(a=>{
-    a.addEventListener("click",e=>{ e.preventDefault(); e.stopPropagation(); window.open(url,"_blank","noopener"); });
+    a.addEventListener("click",e=>{ e.stopPropagation(); });
   });
 }
 
