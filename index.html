@@ -131,6 +131,9 @@ nav.tabs button:hover{color:var(--ink)}
 @media(max-width:900px){.col-right{position:static}}
 /* mobilde Lider Tablosu sekmesindeyken sağ kolon tekrar etmesin */
 @media(max-width:900px){#appScreen.lb-tab .col-right{display:none}}
+/* Şema sekmesi: sağ paneli gizle, tam genişlik kullan (şema büyüsün) */
+#appScreen.brk-tab .col-right{display:none}
+#appScreen.brk-tab .wrap{grid-template-columns:1fr;max-width:1560px}
 
 /* ===== FILTER PILLS ===== */
 .filters{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
@@ -2407,7 +2410,7 @@ function renderBracket(){
       const t=teams[r]; const fl=t?flagUrl(t):null;
       const winCls=(node.win===r+1)?" win":"";
       const cy=rowY[r];
-      if(fl) g+=`<image href="${fl}" x="${x+7}" y="${cy-6.5}" width="18" height="13" preserveAspectRatio="xMidYMid slice"/>`;
+      if(fl) g+=`<image href="${fl}" xlink:href="${fl}" x="${x+7}" y="${cy-6.5}" width="18" height="13" preserveAspectRatio="xMidYMid slice"/>`;
       g+=`<text x="${x+30}" y="${cy+4}" class="brk-cc${winCls}">${esc2(t?brkCode(t):"—")}</text>`;
       const sv=scores[r];
       if(sv!=null) g+=`<text x="${x+BW-9}" y="${cy+4}" class="brk-sc${winCls}" text-anchor="end">${sv}</text>`;
@@ -2426,7 +2429,7 @@ function renderBracket(){
     return `<path class="brk-ln" d="M${cl} ${c1y} H${midX} V${py} M${cl} ${c2y} H${midX} V${py} M${midX} ${py} H${parentRight}"/>`;
   }
 
-  let s=`<svg viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" class="brk-svg">`;
+  let s=`<svg viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="brk-svg">`;
   // bağlantılar (önce çizilsin, kutular üstte kalsın)
   for(let j=0;j<4;j++) s+=connL(Lx[0],y32[2*j],y32[2*j+1],Lx[1],y16[j]);
   for(let k=0;k<2;k++) s+=connL(Lx[1],y16[2*k],y16[2*k+1],Lx[2],yqf[k]);
@@ -2466,7 +2469,7 @@ function renderBracket(){
     g+=`<line x1="${x+8}" y1="${top+h/2}" x2="${x+w-8}" y2="${top+h/2}" class="brk-div"/>`;
     for(let r=0;r<2;r++){
       const t=teams[r], fl=t?flagUrl(t):null, winCls=(node.win===r+1)?" win":"", cy=rowY[r];
-      if(fl) g+=`<image href="${fl}" x="${x+9}" y="${cy-6.5}" width="18" height="13" preserveAspectRatio="xMidYMid slice"/>`;
+      if(fl) g+=`<image href="${fl}" xlink:href="${fl}" x="${x+9}" y="${cy-6.5}" width="18" height="13" preserveAspectRatio="xMidYMid slice"/>`;
       g+=`<text x="${x+32}" y="${cy+4}" class="brk-cc${winCls}">${esc2(t?brkCode(t):"—")}</text>`;
       if(scores[r]!=null) g+=`<text x="${x+w-10}" y="${cy+4}" class="brk-sc${winCls}" text-anchor="end">${scores[r]}</text>`;
     }
@@ -2488,6 +2491,7 @@ function switchTab(t){
   show($("#tab-admin"),t==="admin");
   // mobilde Lider Tablosu sekmesindeyken sağdaki kopya tabloyu gizle
   $("#appScreen").classList.toggle("lb-tab", t==="leaderboard");
+  $("#appScreen").classList.toggle("brk-tab", t==="bracket");
   if(t==="admin"){ renderAdminFilters(); renderAdmin(); }
   if(t==="leaderboard"){ renderLeaderboardTab(); }
   if(t==="bracket"){ renderBracket(); }
