@@ -652,7 +652,6 @@ nav.tabs button:hover{color:var(--ink)}
 
   <nav class="tabs">
     <button data-tab="matches" class="on">Maçlar</button>
-    <button data-tab="mypicks">Tahminlerim</button>
     <button data-tab="how">Nasıl Oynanır</button>
     <button data-tab="leaderboard">Lider Tablosu</button>
     <button data-tab="chart">Grafik</button>
@@ -668,11 +667,6 @@ nav.tabs button:hover{color:var(--ink)}
         <div class="filters" id="sortFilters"></div>
         <div id="stageInfo"></div>
         <div id="matchList"><div class="loading"><div class="spin"></div>Maçlar yükleniyor…</div></div>
-      </section>
-
-      <!-- MY PICKS -->
-      <section id="tab-mypicks" class="hidden">
-        <div id="mypicksList"><div class="loading"><div class="spin"></div>Tahminlerin yükleniyor…</div></div>
       </section>
 
       <!-- HOW TO -->
@@ -2121,7 +2115,7 @@ async function adminSave(id,btn){
     if(error) throw error;
     Object.assign(matches.find(m=>m.id===id),patch);
     band("Maç güncellendi","Yönetim");
-    renderLeaderboard(); renderRibbon(); renderMatches(); renderMyPicks(); renderAdmin(); renderSortFilters(); renderChart();
+    renderLeaderboard(); renderRibbon(); renderMatches(); renderAdmin(); renderSortFilters(); renderChart();
   }catch(err){ band((err&&err.message)||"Hata","Yönetim",true); }
   finally{ btn.disabled=false; btn.textContent="Kaydet"; }
 }
@@ -2294,7 +2288,6 @@ function niceStep(x){
 function switchTab(t){
   document.querySelectorAll("nav.tabs button").forEach(b=>b.classList.toggle("on",b.dataset.tab===t));
   show($("#tab-matches"),t==="matches");
-  show($("#tab-mypicks"),t==="mypicks");
   show($("#tab-how"),t==="how");
   show($("#tab-leaderboard"),t==="leaderboard");
   show($("#tab-chart"),t==="chart");
@@ -2304,7 +2297,6 @@ function switchTab(t){
   $("#appScreen").classList.toggle("lb-tab", t==="leaderboard");
   if(t==="admin"){ renderAdminFilters(); renderAdmin(); }
   if(t==="leaderboard"){ renderLeaderboardTab(); }
-  if(t==="mypicks"){ renderMyPicks(); }
   if(t==="chart"){ renderChart(); }
   if(t==="stats"){ renderStats(); }
 }
@@ -2323,7 +2315,7 @@ function renderLeaderboardTab(){
 function renderAll(){
   assignColors();
   renderRibbon(); renderStageFilters(); renderGroupFilters(); renderSortFilters();
-  renderMatches(); renderMyPicks(); renderLeaderboard(); renderLeaderboardTab(); renderChart(); renderStats(); renderChampMini();
+  renderMatches(); renderLeaderboard(); renderLeaderboardTab(); renderChart(); renderStats(); renderChampMini();
 }
 function renderChampMini(){
   const el=$("#champMini"); if(!el) return;
