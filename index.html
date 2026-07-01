@@ -459,6 +459,23 @@ nav.tabs button:hover{color:var(--ink)}
 .odds-textarea{width:100%;min-height:200px;resize:vertical;background:#0c1611;border:1px solid var(--line2);
   border-radius:10px;color:#eaf3ee;font:13px/1.5 monospace;padding:10px;box-sizing:border-box}
 .pop-btn.ghost{background:transparent;border:1px solid var(--line2);color:var(--ink)}
+/* Şema (bracket) */
+.brk-hint{font-size:12.5px;color:var(--muted);margin:0 0 10px;font-weight:600}
+.brk-scroll{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;
+  border:1px solid var(--line);border-radius:14px;background:linear-gradient(180deg,#0c1a13,#0a1610);padding:10px}
+.brk-svg{display:block}
+.brk-bx{fill:#12241a;stroke:var(--line2);stroke-width:1}
+.brk-bx.live{stroke:var(--bad);stroke-width:1.6}
+.brk-bx.fin{fill:#16281c;stroke:rgba(212,175,55,.55);stroke-width:1.4}
+.brk-div{stroke:var(--line);stroke-width:1}
+.brk-cc{fill:#cfe6d8;font:800 12px 'Plus Jakarta Sans',sans-serif}
+.brk-cc.win{fill:#fff}
+.brk-sc{fill:#9fb3a7;font:800 12px 'Plus Jakarta Sans',sans-serif}
+.brk-sc.win{fill:var(--gold2)}
+.brk-ln{fill:none;stroke:#2a4636;stroke-width:1.5}
+.brk-livedot{fill:var(--bad)}
+.brk-title{fill:var(--gold);font:900 15px 'Anton',sans-serif;letter-spacing:1px}
+.brk-3rd{fill:#8fb0a0;font:800 11px 'Plus Jakarta Sans',sans-serif;letter-spacing:1px}
 .scoretable{width:100%;border-collapse:collapse;margin:6px 0 4px;font-size:14px}
 .scoretable th,.scoretable td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line)}
 .scoretable thead th{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);font-weight:800}
@@ -652,6 +669,7 @@ nav.tabs button:hover{color:var(--ink)}
 
   <nav class="tabs">
     <button data-tab="matches" class="on">Maçlar</button>
+    <button data-tab="bracket">Şema</button>
     <button data-tab="how">Nasıl Oynanır</button>
     <button data-tab="leaderboard">Lider Tablosu</button>
     <button data-tab="chart">Grafik</button>
@@ -667,6 +685,11 @@ nav.tabs button:hover{color:var(--ink)}
         <div class="filters" id="sortFilters"></div>
         <div id="stageInfo"></div>
         <div id="matchList"><div class="loading"><div class="spin"></div>Maçlar yükleniyor…</div></div>
+      </section>
+
+      <!-- BRACKET -->
+      <section id="tab-bracket" class="hidden">
+        <div id="bracketBox"><div class="loading"><div class="spin"></div>Şema hazırlanıyor…</div></div>
       </section>
 
       <!-- HOW TO -->
@@ -2285,9 +2308,169 @@ function niceStep(x){
 }
 
 
+/* ====================================================================
+   ŞEMA (BRACKET) — Son 32 → Final. Topoloji sabit (görselden);
+   takımlar/skorlar matches'ten canlı gelir (sadece gerçek skorlar).
+   ==================================================================== */
+const BRK_LEFT=[
+  ["Germany","Paraguay"],["France","Sweden"],["South Africa","Canada"],["Netherlands","Morocco"],
+  ["Portugal","Croatia"],["Spain","Austria"],["United States","Bosnia and Herzegovina"],["Belgium","Senegal"]
+];
+const BRK_RIGHT=[
+  ["Brazil","Japan"],["Côte d'Ivoire","Norway"],["Mexico","Ecuador"],["England","DR Congo"],
+  ["Argentina","Cabo Verde"],["Australia","Egypt"],["Switzerland","Algeria"],["Colombia","Ghana"]
+];
+const BRK_CODE={Germany:"GER",Paraguay:"PAR",France:"FRA",Sweden:"SWE","South Africa":"RSA",Canada:"CAN",
+  Netherlands:"NED",Morocco:"MAR",Portugal:"POR",Croatia:"CRO",Spain:"ESP",Austria:"AUT",
+  "United States":"USA","Bosnia and Herzegovina":"BIH",Belgium:"BEL",Senegal:"SEN",Brazil:"BRA",
+  Japan:"JPN","Côte d'Ivoire":"CIV",Norway:"NOR",Mexico:"MEX",Ecuador:"ECU",England:"ENG",
+  "DR Congo":"COD",Argentina:"ARG","Cabo Verde":"CPV",Australia:"AUS",Egypt:"EGY",Switzerland:"SUI",
+  Algeria:"ALG",Colombia:"COL",Ghana:"GHA"};
+const brkCode=t=> t? (BRK_CODE[t]|| (TR[t]||t).slice(0,3).toUpperCase()) : "";
+
+function brkFindMatch(stage, poolA, poolB){
+  return matches.find(m=> m.stage===stage && m.team_home && m.team_away &&
+    ((poolA.has(m.team_home)&&poolB.has(m.team_away)) || (poolA.has(m.team_away)&&poolB.has(m.team_home))));
+}
+// Bir düğüm: iki çocuğun havuzuna göre DB maçını bul → gösterilecek takım/skorları çöz
+function brkNode(stage, poolA, poolB, fallback){
+  const m=brkFindMatch(stage, poolA, poolB);
+  if(m){
+    const live=isInPlay(m), fin=!!m.finished;
+    let win=0;
+    if((fin||live) && m.home_score!=null && m.away_score!=null){
+      if(m.home_score>m.away_score) win=1; else if(m.away_score>m.home_score) win=2;
+    }
+    return {t1:m.team_home,t2:m.team_away,s1:m.home_score,s2:m.away_score,live,fin,win,
+            pool:new Set([...poolA,...poolB])};
+  }
+  return {t1:(fallback?fallback[0]:null),t2:(fallback?fallback[1]:null),s1:null,s2:null,
+          live:false,fin:false,win:0,pool:new Set([...poolA,...poolB])};
+}
+
+function renderBracket(){
+  const box=$("#bracketBox"); if(!box) return;
+
+  // --- düğümleri çöz (alttan yukarı) ---
+  const leftLeafPool=BRK_LEFT.map(p=>new Set(p));
+  const rightLeafPool=BRK_RIGHT.map(p=>new Set(p));
+  const leaf=(pairs,pools,i)=> brkNode("r32", new Set([pairs[i][0]]), new Set([pairs[i][1]]), pairs[i]);
+  const L32=BRK_LEFT.map((_,i)=>leaf(BRK_LEFT,leftLeafPool,i));
+  const R32=BRK_RIGHT.map((_,i)=>leaf(BRK_RIGHT,rightLeafPool,i));
+  const mkNext=(childNodes,leafPools,stage)=>{
+    const out=[];
+    for(let j=0;j<childNodes.length;j+=2){
+      const pa=childNodes[j].pool, pb=childNodes[j+1].pool;
+      out.push(brkNode(stage, pa, pb, null));
+    }
+    return out;
+  };
+  const L16=mkNext(L32,null,"r16"), R16=mkNext(R32,null,"r16");
+  const LQF=mkNext(L16,null,"qf"),  RQF=mkNext(R16,null,"qf");
+  const LSF=mkNext(LQF,null,"sf"),  RSF=mkNext(RQF,null,"sf");
+  const leftAll=new Set(BRK_LEFT.flat()), rightAll=new Set(BRK_RIGHT.flat());
+  const FIN=brkNode("final", leftAll, rightAll, null);
+  const THIRD=(()=>{ const m=matches.find(x=>x.stage==="third"); 
+    if(m&&m.team_home&&m.team_away){ const live=isInPlay(m),fin=!!m.finished; let win=0;
+      if((fin||live)&&m.home_score!=null&&m.away_score!=null){ if(m.home_score>m.away_score)win=1; else if(m.away_score>m.home_score)win=2; }
+      return {t1:m.team_home,t2:m.team_away,s1:m.home_score,s2:m.away_score,live,fin,win}; }
+    return {t1:null,t2:null,s1:null,s2:null,live:false,fin:false,win:0};
+  })();
+
+  // --- yerleşim ---
+  const BW=108, BH=46, STEP=64, TOP=16, GAP=48;
+  const yR=i=> TOP + i*STEP + BH/2;
+  const mid=(a,b)=>(a+b)/2;
+  const y32=[...Array(8)].map((_,i)=>yR(i));
+  const y16=[0,1,2,3].map(j=>mid(y32[2*j],y32[2*j+1]));
+  const yqf=[0,1].map(k=>mid(y16[2*k],y16[2*k+1]));
+  const ysf=mid(yqf[0],yqf[1]);
+  const Lx=[8, 8+(BW+GAP), 8+2*(BW+GAP), 8+3*(BW+GAP)];
+  const FW=128, fx=Lx[3]+BW+GAP, cx=fx+FW/2;
+  const Rsf=fx+FW+GAP, Rqf=Rsf+BW+GAP, Rr16=Rqf+BW+GAP, Rr32=Rr16+BW+GAP;
+  const W=Rr32+BW+8, H=Math.max(y32[7]+BH/2+20, ysf+240);
+
+  const esc2=s=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  function boxSVG(x,y,node){
+    const top=y-BH/2;
+    const rowY=[top+BH*0.30, top+BH*0.74];
+    const teams=[node.t1,node.t2], scores=[node.s1,node.s2];
+    let g=`<rect x="${x}" y="${top}" width="${BW}" height="${BH}" rx="9" class="brk-bx${node.live?' live':''}"/>`;
+    g+=`<line x1="${x+6}" y1="${top+BH/2}" x2="${x+BW-6}" y2="${top+BH/2}" class="brk-div"/>`;
+    for(let r=0;r<2;r++){
+      const t=teams[r]; const fl=t?flagUrl(t):null;
+      const winCls=(node.win===r+1)?" win":"";
+      const cy=rowY[r];
+      if(fl) g+=`<image href="${fl}" x="${x+7}" y="${cy-6.5}" width="18" height="13" preserveAspectRatio="xMidYMid slice"/>`;
+      g+=`<text x="${x+30}" y="${cy+4}" class="brk-cc${winCls}">${esc2(t?brkCode(t):"—")}</text>`;
+      const sv=scores[r];
+      if(sv!=null) g+=`<text x="${x+BW-9}" y="${cy+4}" class="brk-sc${winCls}" text-anchor="end">${sv}</text>`;
+    }
+    if(node.live) g+=`<circle cx="${x+BW-7}" cy="${top+7}" r="3.2" class="brk-livedot"/>`;
+    return `<g>${g}</g>`;
+  }
+  function connL(childX,c1y,c2y,parentX,py){
+    const cr=childX+BW, midX=(cr+parentX)/2;
+    return `<path class="brk-ln" d="M${cr} ${c1y} H${midX} V${py} M${cr} ${c2y} H${midX} V${py} M${midX} ${py} H${parentX}"/>`;
+  }
+  function connR(childX,c1y,c2y,parentRight,py){
+    const cl=childX, midX=(cl+parentRight)/2;
+    return `<path class="brk-ln" d="M${cl} ${c1y} H${midX} V${py} M${cl} ${c2y} H${midX} V${py} M${midX} ${py} H${parentRight}"/>`;
+  }
+
+  let s=`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg" class="brk-svg">`;
+  // bağlantılar (önce çizilsin, kutular üstte kalsın)
+  for(let j=0;j<4;j++) s+=connL(Lx[0],y32[2*j],y32[2*j+1],Lx[1],y16[j]);
+  for(let k=0;k<2;k++) s+=connL(Lx[1],y16[2*k],y16[2*k+1],Lx[2],yqf[k]);
+  s+=connL(Lx[2],yqf[0],yqf[1],Lx[3],ysf);
+  s+=`<path class="brk-ln" d="M${Lx[3]+BW} ${ysf} H${fx}"/>`;
+  for(let j=0;j<4;j++) s+=connR(Rr32,y32[2*j],y32[2*j+1],Rr16+BW,y16[j]);
+  for(let k=0;k<2;k++) s+=connR(Rr16,y16[2*k],y16[2*k+1],Rqf+BW,yqf[k]);
+  s+=connR(Rqf,yqf[0],yqf[1],Rsf+BW,ysf);
+  s+=`<path class="brk-ln" d="M${Rsf} ${ysf} H${fx+FW}"/>`;
+
+  // kutular — sol
+  L32.forEach((n,i)=> s+=boxSVG(Lx[0],y32[i],n));
+  L16.forEach((n,j)=> s+=boxSVG(Lx[1],y16[j],n));
+  LQF.forEach((n,k)=> s+=boxSVG(Lx[2],yqf[k],n));
+  s+=boxSVG(Lx[3],ysf,LSF[0]);
+  // sağ
+  R32.forEach((n,i)=> s+=boxSVG(Rr32,y32[i],n));
+  R16.forEach((n,j)=> s+=boxSVG(Rr16,y16[j],n));
+  RQF.forEach((n,k)=> s+=boxSVG(Rqf,yqf[k],n));
+  s+=boxSVG(Rsf,ysf,RSF[0]);
+  // final (ortada) + kupa başlığı
+  s+=`<text x="${cx}" y="${ysf-58}" class="brk-title" text-anchor="middle">🏆 ŞAMPİYON</text>`;
+  s+=boxSVGFinal(fx,ysf,FIN,FW,BH,cx);
+  // üçüncülük
+  s+=`<text x="${cx}" y="${ysf+BH/2+34}" class="brk-3rd" text-anchor="middle">ÜÇÜNCÜLÜK</text>`;
+  s+=boxSVGFinal(fx,ysf+BH+70,THIRD,FW,BH,cx);
+  s+=`</svg>`;
+
+  box.innerHTML=`
+    <div class="brk-hint">Son 32'den finale — takımlar ve skorlar maç sonuçlarına göre otomatik dolar. Yatayda kaydırabilirsin →</div>
+    <div class="brk-scroll">${s}</div>`;
+
+  function boxSVGFinal(x,y,node,w,h,centerx){
+    const top=y-h/2, rowY=[top+h*0.30, top+h*0.74];
+    const teams=[node.t1,node.t2],scores=[node.s1,node.s2];
+    let g=`<rect x="${x}" y="${top}" width="${w}" height="${h}" rx="10" class="brk-bx fin${node.live?' live':''}"/>`;
+    g+=`<line x1="${x+8}" y1="${top+h/2}" x2="${x+w-8}" y2="${top+h/2}" class="brk-div"/>`;
+    for(let r=0;r<2;r++){
+      const t=teams[r], fl=t?flagUrl(t):null, winCls=(node.win===r+1)?" win":"", cy=rowY[r];
+      if(fl) g+=`<image href="${fl}" x="${x+9}" y="${cy-6.5}" width="18" height="13" preserveAspectRatio="xMidYMid slice"/>`;
+      g+=`<text x="${x+32}" y="${cy+4}" class="brk-cc${winCls}">${esc2(t?brkCode(t):"—")}</text>`;
+      if(scores[r]!=null) g+=`<text x="${x+w-10}" y="${cy+4}" class="brk-sc${winCls}" text-anchor="end">${scores[r]}</text>`;
+    }
+    if(node.live) g+=`<circle cx="${x+w-8}" cy="${top+7}" r="3.2" class="brk-livedot"/>`;
+    return `<g>${g}</g>`;
+  }
+}
+
 function switchTab(t){
   document.querySelectorAll("nav.tabs button").forEach(b=>b.classList.toggle("on",b.dataset.tab===t));
   show($("#tab-matches"),t==="matches");
+  show($("#tab-bracket"),t==="bracket");
   show($("#tab-how"),t==="how");
   show($("#tab-leaderboard"),t==="leaderboard");
   show($("#tab-chart"),t==="chart");
@@ -2297,6 +2480,7 @@ function switchTab(t){
   $("#appScreen").classList.toggle("lb-tab", t==="leaderboard");
   if(t==="admin"){ renderAdminFilters(); renderAdmin(); }
   if(t==="leaderboard"){ renderLeaderboardTab(); }
+  if(t==="bracket"){ renderBracket(); }
   if(t==="chart"){ renderChart(); }
   if(t==="stats"){ renderStats(); }
 }
@@ -2315,7 +2499,7 @@ function renderLeaderboardTab(){
 function renderAll(){
   assignColors();
   renderRibbon(); renderStageFilters(); renderGroupFilters(); renderSortFilters();
-  renderMatches(); renderLeaderboard(); renderLeaderboardTab(); renderChart(); renderStats(); renderChampMini();
+  renderMatches(); renderLeaderboard(); renderLeaderboardTab(); renderChart(); renderStats(); renderChampMini(); renderBracket();
 }
 function renderChampMini(){
   const el=$("#champMini"); if(!el) return;
