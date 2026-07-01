@@ -463,7 +463,10 @@ nav.tabs button:hover{color:var(--ink)}
 .brk-hint{font-size:12.5px;color:var(--muted);margin:0 0 10px;font-weight:600}
 .brk-scroll{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;
   border:1px solid var(--line);border-radius:14px;background:linear-gradient(180deg,#0c1a13,#0a1610);padding:10px}
-.brk-svg{display:block}
+.brk-svg{display:block;width:100%;height:auto;min-width:600px}
+.brk-g.clk{cursor:pointer}
+.brk-g.clk:hover .brk-bx{fill:#183024;stroke:var(--gold2)}
+.brk-dt{fill:#7f978a;font:700 9.5px 'Plus Jakarta Sans',sans-serif}
 .brk-bx{fill:#12241a;stroke:var(--line2);stroke-width:1}
 .brk-bx.live{stroke:var(--bad);stroke-width:1.6}
 .brk-bx.fin{fill:#16281c;stroke:rgba(212,175,55,.55);stroke-width:1.4}
@@ -2342,10 +2345,12 @@ function brkNode(stage, poolA, poolB, fallback){
       if(m.home_score>m.away_score) win=1; else if(m.away_score>m.home_score) win=2;
     }
     return {t1:m.team_home,t2:m.team_away,s1:m.home_score,s2:m.away_score,live,fin,win,
+            id:m.id, kick:m.kickoff, clickable:(fin||live),
             pool:new Set([...poolA,...poolB])};
   }
   return {t1:(fallback?fallback[0]:null),t2:(fallback?fallback[1]:null),s1:null,s2:null,
-          live:false,fin:false,win:0,pool:new Set([...poolA,...poolB])};
+          live:false,fin:false,win:0, id:null, kick:null, clickable:false,
+          pool:new Set([...poolA,...poolB])};
 }
 
 function renderBracket(){
@@ -2373,12 +2378,13 @@ function renderBracket(){
   const THIRD=(()=>{ const m=matches.find(x=>x.stage==="third"); 
     if(m&&m.team_home&&m.team_away){ const live=isInPlay(m),fin=!!m.finished; let win=0;
       if((fin||live)&&m.home_score!=null&&m.away_score!=null){ if(m.home_score>m.away_score)win=1; else if(m.away_score>m.home_score)win=2; }
-      return {t1:m.team_home,t2:m.team_away,s1:m.home_score,s2:m.away_score,live,fin,win}; }
-    return {t1:null,t2:null,s1:null,s2:null,live:false,fin:false,win:0};
+      return {t1:m.team_home,t2:m.team_away,s1:m.home_score,s2:m.away_score,live,fin,win,
+              id:m.id, kick:m.kickoff, clickable:(fin||live)}; }
+    return {t1:null,t2:null,s1:null,s2:null,live:false,fin:false,win:0, id:null, kick:null, clickable:false};
   })();
 
   // --- yerleşim ---
-  const BW=108, BH=46, STEP=64, TOP=16, GAP=48;
+  const BW=108, BH=46, STEP=76, TOP=16, GAP=48;
   const yR=i=> TOP + i*STEP + BH/2;
   const mid=(a,b)=>(a+b)/2;
   const y32=[...Array(8)].map((_,i)=>yR(i));
@@ -2407,7 +2413,9 @@ function renderBracket(){
       if(sv!=null) g+=`<text x="${x+BW-9}" y="${cy+4}" class="brk-sc${winCls}" text-anchor="end">${sv}</text>`;
     }
     if(node.live) g+=`<circle cx="${x+BW-7}" cy="${top+7}" r="3.2" class="brk-livedot"/>`;
-    return `<g>${g}</g>`;
+    if(node.kick) g+=`<text x="${x+BW/2}" y="${top+BH+11}" class="brk-dt" text-anchor="middle">${fmtKick(node.kick)}</text>`;
+    const cls=`brk-g${node.clickable?' clk':''}`;
+    return `<g class="${cls}"${node.clickable?` data-mid="${node.id}"`:''}>${g}</g>`;
   }
   function connL(childX,c1y,c2y,parentX,py){
     const cr=childX+BW, midX=(cr+parentX)/2;
@@ -2418,7 +2426,7 @@ function renderBracket(){
     return `<path class="brk-ln" d="M${cl} ${c1y} H${midX} V${py} M${cl} ${c2y} H${midX} V${py} M${midX} ${py} H${parentRight}"/>`;
   }
 
-  let s=`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg" class="brk-svg">`;
+  let s=`<svg viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" class="brk-svg">`;
   // bağlantılar (önce çizilsin, kutular üstte kalsın)
   for(let j=0;j<4;j++) s+=connL(Lx[0],y32[2*j],y32[2*j+1],Lx[1],y16[j]);
   for(let k=0;k<2;k++) s+=connL(Lx[1],y16[2*k],y16[2*k+1],Lx[2],yqf[k]);
@@ -2463,7 +2471,9 @@ function renderBracket(){
       if(scores[r]!=null) g+=`<text x="${x+w-10}" y="${cy+4}" class="brk-sc${winCls}" text-anchor="end">${scores[r]}</text>`;
     }
     if(node.live) g+=`<circle cx="${x+w-8}" cy="${top+7}" r="3.2" class="brk-livedot"/>`;
-    return `<g>${g}</g>`;
+    if(node.kick) g+=`<text x="${x+w/2}" y="${top+h+11}" class="brk-dt" text-anchor="middle">${fmtKick(node.kick)}</text>`;
+    const cls=`brk-g${node.clickable?' clk':''}`;
+    return `<g class="${cls}"${node.clickable?` data-mid="${node.id}"`:''}>${g}</g>`;
   }
 }
 
@@ -2572,6 +2582,7 @@ function bindStaticUI(){
   $("#popup").addEventListener("click",e=>{ if(e.target.id==="popup") closePopup(); });
   document.addEventListener("click",e=>{ const b=e.target.closest("[data-allpreds]"); if(b) openMatchPreds(+b.dataset.allpreds); });
   document.addEventListener("click",e=>{ const b=e.target.closest("[data-odds]"); if(b) showOddsTable(+b.dataset.odds); });
+  document.addEventListener("click",e=>{ const g=e.target.closest("g.brk-g.clk[data-mid]"); if(g) openMatchPreds(+g.dataset.mid); });
   document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ closeModal(); closePopup(); } });
 }
 
