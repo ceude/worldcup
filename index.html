@@ -1804,16 +1804,19 @@ function showPrizePopup(){
   const players=profiles.filter(p=>!isHiddenUser(p.username)).sort((a,b)=>a.username.localeCompare(b.username,"tr"));
   const payers=players.filter(p=>paid.has(p.id));
   const debtors=players.filter(p=>!paid.has(p.id));
-  const chip=(p,cls)=>`<span class="pay-chip ${cls}">${esc(p.username)}${p.id===session.user.id?' (sen)':''}</span>`;
+  const isSelf=p=>p.id===session.user.id;
+  const mask=n=> (n && n.length>1) ? n[0]+"*".repeat(n.length-1) : (n||"");
+  const chipOk=p=>`<span class="pay-chip ok">${esc(p.username)}${isSelf(p)?' (sen)':''}</span>`;
+  const chipNo=p=>`<span class="pay-chip no">${esc(isSelf(p)?p.username:mask(p.username))}${isSelf(p)?' (sen)':''}</span>`;
   const listBlock = (payers.length||debtors.length) ? `
     <div class="pay-lists">
       <div class="pay-col">
-        <div class="pay-lab ok">✅ Ödeyenler (${payers.length})</div>
-        <div class="pay-chips">${payers.length?payers.map(p=>chip(p,"ok")).join(""):'<span class="pay-empty">—</span>'}</div>
+        <div class="pay-lab ok">✅ Katkı sağlayanlar (${payers.length})</div>
+        <div class="pay-chips">${payers.length?payers.map(chipOk).join(""):'<span class="pay-empty">—</span>'}</div>
       </div>
       <div class="pay-col">
-        <div class="pay-lab no">⏳ Ödemeyenler (${debtors.length})</div>
-        <div class="pay-chips">${debtors.length?debtors.map(p=>chip(p,"no")).join(""):'<span class="pay-empty">—</span>'}</div>
+        <div class="pay-lab no">⏳ Henüz katkı sağlamayanlar (${debtors.length})</div>
+        <div class="pay-chips">${debtors.length?debtors.map(chipNo).join(""):'<span class="pay-empty">—</span>'}</div>
       </div>
     </div>`:"";
   showPopup(`
