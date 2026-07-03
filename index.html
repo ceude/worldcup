@@ -366,6 +366,18 @@ nav.tabs button:hover{color:var(--ink)}
 .prize-link{display:inline-block;margin:2px 0 14px;color:var(--gold);font-weight:800;font-size:14px;text-decoration:none;
   border-bottom:1px dashed rgba(212,175,55,.5);padding-bottom:1px}
 .prize-link:hover{color:var(--gold2)}
+/* Ödül pop-up'ı: ödeyen / ödemeyen listeleri */
+.pay-lists{display:flex;gap:10px;margin:4px 0 14px;text-align:left}
+.pay-col{flex:1;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:9px 10px}
+.pay-lab{font-size:11px;font-weight:800;letter-spacing:.3px;margin-bottom:7px}
+.pay-lab.ok{color:#7ee0a3}
+.pay-lab.no{color:#ffcf6a}
+.pay-chips{display:flex;flex-wrap:wrap;gap:5px}
+.pay-chip{font-size:11.5px;font-weight:700;border-radius:999px;padding:3px 9px;white-space:nowrap}
+.pay-chip.ok{background:#15301f;color:#a7ecc2;border:1px solid rgba(126,224,163,.3)}
+.pay-chip.no{background:#2a2213;color:#ffdf9a;border:1px solid rgba(255,207,106,.3)}
+.pay-empty{color:var(--muted);font-size:12px}
+@media(max-width:420px){.pay-lists{flex-direction:column}}
 /* Admin: ödeyenler chip listesi */
 .paid-chips{display:flex;flex-wrap:wrap;gap:7px}
 .paid-chip{display:inline-flex;align-items:center;gap:6px;background:#13261c;border:1px solid var(--line2);
@@ -1782,6 +1794,22 @@ function showOddsTable(mid){
 function showPrizePopup(){
   const ball="https://assets.adidas.com/images/w_500,f_auto,q_auto/3f6dcc811fbe49a38397134fbfc5c3f9_9366/Trionda_FIFA_Fussball-Weltmeisterschaft_26tm_Trainingsball_Weiss_JD8032_01_00_standard.jpg";
   const url="https://www.adidas.de/trionda-fifa-fussball-weltmeisterschaft-26-trainingsball/JD8032.html";
+  const paid=paidSet();
+  const players=profiles.filter(p=>!isHiddenUser(p.username)).sort((a,b)=>a.username.localeCompare(b.username,"tr"));
+  const payers=players.filter(p=>paid.has(p.id));
+  const debtors=players.filter(p=>!paid.has(p.id));
+  const chip=(p,cls)=>`<span class="pay-chip ${cls}">${esc(p.username)}${p.id===session.user.id?' (sen)':''}</span>`;
+  const listBlock = (payers.length||debtors.length) ? `
+    <div class="pay-lists">
+      <div class="pay-col">
+        <div class="pay-lab ok">✅ Ödeyenler (${payers.length})</div>
+        <div class="pay-chips">${payers.length?payers.map(p=>chip(p,"ok")).join(""):'<span class="pay-empty">—</span>'}</div>
+      </div>
+      <div class="pay-col">
+        <div class="pay-lab no">⏳ Ödemeyenler (${debtors.length})</div>
+        <div class="pay-chips">${debtors.length?debtors.map(p=>chip(p,"no")).join(""):'<span class="pay-empty">—</span>'}</div>
+      </div>
+    </div>`:"";
   showPopup(`
     <button class="x" id="popupClose">✕</button>
     <a class="prize-ball" href="${url}" target="_blank" rel="noopener" title="Ödülü gör">
@@ -1791,6 +1819,7 @@ function showPrizePopup(){
       Havuzda biriken bedelle birinciye, turnuva ödülü olarak resmi
       <b>adidas FIFA Dünya Kupası 26 League</b> futbol topu hediye! ⚽</p>
     <a class="prize-link" href="${url}" target="_blank" rel="noopener">🎁 Ödülü gör →</a>
+    ${listBlock}
     <button class="pop-btn" id="popupClose2">Tamam 👍</button>`);
   // Linki tarayıcının kendisi açsın (referrer doğal gitsin; adidas bot-koruması 403 vermesin).
   // Sadece tıklamanın arka plana sıçrayıp pop-up'ı kapatmasını engelliyoruz; gezinmeye dokunmuyoruz.
