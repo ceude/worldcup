@@ -378,6 +378,8 @@ nav.tabs button:hover{color:var(--ink)}
 .pay-chip.no{background:#2a2213;color:#ffdf9a;border:1px solid rgba(255,207,106,.3)}
 .pay-empty{color:var(--muted);font-size:12px}
 @media(max-width:420px){.pay-lists{flex-direction:column}}
+.pay-count{font-size:13px;color:var(--muted);font-weight:700;margin:2px 0 14px}
+.pay-count b{color:var(--gold2)}
 /* Admin: ödeyenler chip listesi */
 .paid-chips{display:flex;flex-wrap:wrap;gap:7px}
 .paid-chip{display:inline-flex;align-items:center;gap:6px;background:#13261c;border:1px solid var(--line2);
@@ -1756,6 +1758,10 @@ function maybeShowOpeningPopup(){
   if(me && !me.champion && championOpen()){ showChampionPicker(); return; }
   // 2) İkinci öncelik: Ödül havuzu mesajı AÇIK ise, şampiyon seçmiş ama henüz ödememişe göster
   if(me && me.champion && appConfig.prize_on==="1" && !paidSet().has(session.user.id)){ showPrizePopup(); return; }
+  // Ödeyenlere tek seferlik teşekkür (mesaj açıkken, daha önce görmediyse)
+  if(me && appConfig.prize_on==="1" && paidSet().has(session.user.id) && !prizeThanksSeen(session.user.id)){
+    showPrizeThanks(); markPrizeThanksSeen(session.user.id); return;
+  }
   // Sonra: turnuvada desteklediği takımı seçmemişse takım seçimi
   if(me && !me.fav_team){ showTeamPicker(true); return; }
   const open=myOpenUnpredicted();
@@ -1826,6 +1832,21 @@ function showPrizePopup(){
   document.querySelectorAll(".prize-ball, .prize-link").forEach(a=>{
     a.addEventListener("click",e=>{ e.stopPropagation(); });
   });
+}
+// Ödeyenlere tek seferlik teşekkür pop-up'ı
+function prizeThanksSeen(uid){ try{ return localStorage.getItem("wcPrizeThanks_"+uid)==="1"; }catch(e){ return false; } }
+function markPrizeThanksSeen(uid){ try{ localStorage.setItem("wcPrizeThanks_"+uid,"1"); }catch(e){} }
+function showPrizeThanks(){
+  const paid=paidSet();
+  const n=profiles.filter(p=>!isHiddenUser(p.username)&&paid.has(p.id)).length;
+  showPopup(`
+    <button class="x" id="popupClose">✕</button>
+    <div class="pop-ic">🙌</div>
+    <h3 class="pop-h">Teşekkürler!</h3>
+    <p class="pop-p">5 € katkını aldık — artık <b>ödül havuzundasın</b> 🏆<br>
+      Bol şans, umarım topu sen kaldırırsın! ⚽</p>
+    <div class="pay-count">Şu ana kadar <b>${n}</b> kişi havuza katıldı 💚</div>
+    <button class="pop-btn" id="popupClose2">Süper 👍</button>`);
 }
 
 // ===== ŞAMPİYON TAHMİNİ POP-UP'I =====
