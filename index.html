@@ -942,7 +942,7 @@ function avatarInner(username, favTeam){
    ==================================================================== */
 let sb=null, session=null, me=null;
 let matches=[], predsMine={}, predsAll=[], profiles=[], predCounts={}, appConfig={};
-let curStage="r32", curGroup="ALL", adminStage="group";
+let curStage="r16", curGroup="ALL", adminStage="group";
 let sortMode="date"; // "date" = tarihe göre (varsayılan), "group" = gruba göre
 let showPast=false; // false = sadece 24 Haziran ve sonrası; true = öncesi de görünür
 let showOpenOnly=false; // Son 32 / Son 16: sadece kilitli olmayan (tahmine açık) maçlar
@@ -1447,9 +1447,20 @@ async function trySave(mid,box){
     document.querySelectorAll(`.si[data-m="${mid}"][data-side="h"]`).forEach(el=>{ el.value=hv; el.classList.add("act"); });
     document.querySelectorAll(`.si[data-m="${mid}"][data-side="a"]`).forEach(el=>{ el.value=av; el.classList.add("act"); });
     band(`${trName(m.team_home)} ${hv} – ${av} ${trName(m.team_away)}`,"Tahmin kaydedildi");
+    // Tahmin (iki skor da) kaydedildikten sonra ödemeyenlere 5€ hatırlatması tekrar
+    maybeNudgePrize();
   }catch(err){
     band((err&&err.message)||"Kaydedilemedi","Hata",true);
   }
+}
+// Ödeme mesajı açıkken, şampiyon seçmiş ve henüz katkı sağlamamış kişiye pop-up'ı (başka pop-up açık değilse) göster
+function maybeNudgePrize(){
+  if(!me || me.champion==null) return;
+  if(appConfig.prize_on!=="1") return;
+  if(paidSet().has(session.user.id)) return;
+  const pop=$("#popup");
+  if(pop && pop.classList.contains("show")) return; // açık pop-up'ı ezmesin
+  setTimeout(()=>{ const p=$("#popup"); if(p && !p.classList.contains("show")) showPrizePopup(); }, 500);
 }
 let bandTimer=null;
 function band(title,sub,isErr){
