@@ -1830,17 +1830,32 @@ function showPrizePopup(){
         <div class="pay-chips">${debtors.length?debtors.map(chipNo).join(""):'<span class="pay-empty">—</span>'}</div>
       </div>
     </div>`:"";
+  // Her açılışta değişen canlı vurgu rengi (göz alışmasın diye)
+  const THEMES=[
+    {a:"#ff8c42",b:"#ffb27a",g:"rgba(255,140,66,.45)"},
+    {a:"#4aa3ff",b:"#8ec8ff",g:"rgba(74,163,255,.45)"},
+    {a:"#ff5f8f",b:"#ffa0bd",g:"rgba(255,95,143,.45)"},
+    {a:"#2dd4bf",b:"#84ebdd",g:"rgba(45,212,191,.45)"},
+    {a:"#c084fc",b:"#dcbcff",g:"rgba(192,132,252,.45)"}
+  ];
+  const th=THEMES[Math.floor(Math.random()*THEMES.length)];
+  const name=(me&&me.username)?esc(me.username):"";
+  const hello = name ? `<b style="color:${th.a}">${name}</b>, ` : "";
   showPopup(`
     <button class="x" id="popupClose">✕</button>
-    <a class="prize-ball" href="${url}" target="_blank" rel="noopener" title="Ödülü gör">
-      <img src="${ball}" alt="adidas FIFA World Cup 26 League topu" loading="lazy"></a>
-    <h3 class="pop-h">Ödül Havuzu 🏆</h3>
-    <p class="pop-p">Turnuva katılımı için <b>5 €</b>'unu <b>Cost odasına</b> bırakmayı unutma 🙌<br>
-      Havuzda biriken bedelle birinciye, turnuva ödülü olarak resmi
-      <b>adidas FIFA Dünya Kupası 26 League</b> futbol topu hediye! ⚽</p>
-    <a class="prize-link" href="${url}" target="_blank" rel="noopener">🎁 Ödülü gör →</a>
+    <div style="display:inline-block;background:${th.a};color:#151007;font-weight:900;font-size:11px;
+      letter-spacing:.6px;padding:5px 13px;border-radius:999px;margin:2px 0 4px">⏳ SENİ BEKLİYORUZ</div>
+    <a class="prize-ball" href="${url}" target="_blank" rel="noopener" title="Ödülü gör"
+      style="border:2px solid ${th.a};box-shadow:0 12px 30px -8px ${th.g}">
+      <img src="${ball}" alt="adidas FIFA World Cup 26 topu" loading="lazy"></a>
+    <h3 class="pop-h" style="color:${th.a}">Ödül Havuzu 🏆</h3>
+    <p class="pop-p">${hello}ödül havuzuna katılmak için tek adım kaldı: <b>5 €</b>'unu <b>Cost odasına</b> bırak, turnuva sonunda ödülünü al 🙌<br>
+      Havuzda biriken bedelle birinciye, ödül olarak resmi
+      <b>adidas FIFA Dünya Kupası 26</b> futbol topu hediye! ⚽</p>
+    <a class="prize-link" href="${url}" target="_blank" rel="noopener" style="color:${th.a};border-bottom-color:${th.a}">🎁 Ödülü gör →</a>
     ${listBlock}
-    <button class="pop-btn" id="popupClose2">Tamam 👍</button>`);
+    <button class="pop-btn" id="popupClose2"
+      style="background:linear-gradient(135deg,${th.a},${th.b});color:#151007;box-shadow:0 8px 22px -8px ${th.g}">Tamam, hallediyorum 👍</button>`);
   // Linki tarayıcının kendisi açsın (referrer doğal gitsin; adidas bot-koruması 403 vermesin).
   // Sadece tıklamanın arka plana sıçrayıp pop-up'ı kapatmasını engelliyoruz; gezinmeye dokunmuyoruz.
   document.querySelectorAll(".prize-ball, .prize-link").forEach(a=>{
@@ -2561,6 +2576,7 @@ function switchTab(t){
   if(t==="bracket"){ renderBracket(); }
   if(t==="chart"){ renderChart(); }
   if(t==="stats"){ renderStats(); }
+  if(t!=="admin") maybeNudgePrize(); // ödemeyenlere sekme geçişinde de hatırlat
 }
 function renderLeaderboardTab(){
   const rows=buildLeaderboard();
