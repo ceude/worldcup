@@ -380,6 +380,11 @@ nav.tabs button:hover{color:var(--ink)}
 @media(max-width:420px){.pay-lists{flex-direction:column}}
 .pay-count{font-size:13px;color:var(--muted);font-weight:700;margin:2px 0 14px}
 .pay-count b{color:var(--gold2)}
+/* Çeyrek final kilidi */
+.qf-lockic{font-size:44px;text-align:center;margin:2px 0 2px}
+.qf-locknote{font-size:11px;font-weight:800;color:#ffb27a;background:#2a1d10;border:1px solid rgba(255,140,66,.35);
+  border-radius:8px;padding:5px 9px;text-align:center;cursor:pointer;margin-top:2px}
+.qf-locknote:hover{background:#341f0f}
 /* Admin: ödeyenler chip listesi */
 .paid-chips{display:flex;flex-wrap:wrap;gap:7px}
 .paid-chip{display:inline-flex;align-items:center;gap:6px;background:#13261c;border:1px solid var(--line2);
@@ -1178,15 +1183,18 @@ function matchCard(m){
     center=`<div class="actual live"><div class="sc">${m.home_score} – ${m.away_score}</div><div class="lab"><span class="livedot"></span>CANLI</div></div>`;
   }else{
     const hv=pred?pred.home:"", av=pred?pred.away:"";
-    const dis=locked?"disabled":"";
+    const payLock = (m.stage==="qf") && qfLocked();
+    const dis=(locked||payLock)?"disabled":"";
     const act=pred?"act":"";
-    const dp = (DYNAMIC_STAGES.has(m.stage)&&oddsOf(m)) ? dynPtsLine(m, hv, av) : "";
+    const dp = (!payLock && DYNAMIC_STAGES.has(m.stage)&&oddsOf(m)) ? dynPtsLine(m, hv, av) : "";
+    const lockNote = payLock ? `<div class="qf-locknote" data-qflock="1">🔒 Tahmin için 5 € katkı gerekli</div>` : "";
     center=`<div class="scorebox-wrap">
       <div class="scorebox">
         <input class="si ${act}" data-m="${m.id}" data-side="h" type="number" min="0" max="99" inputmode="numeric" value="${hv}" ${dis}>
         <span class="dash">–</span>
         <input class="si ${act}" data-m="${m.id}" data-side="a" type="number" min="0" max="99" inputmode="numeric" value="${av}" ${dis}>
       </div>
+      ${lockNote}
       <div class="dynpts" id="dynpts-${m.id}">${dp}</div>
     </div>`;
   }
@@ -1348,7 +1356,23 @@ function renderStageFilters(){
     `<button class="pill ${s.k===curStage?"on":""}" data-stage="${s.k}">${s.label}</button>`).join("");
   $("#stageFilters").querySelectorAll(".pill").forEach(b=>b.onclick=()=>{
     curStage=b.dataset.stage; curGroup="ALL"; renderStageFilters(); renderGroupFilters(); renderSortFilters(); renderMatches();
+    if(curStage==="qf" && qfLocked()) showQFLockPopup();
   });
+}
+// Çeyrek final tahminleri sadece katkı sağlayanlara açık (admin muaf)
+function hasPaid(){ return !!(session && paidSet().has(session.user.id)); }
+function qfLocked(){ return !(me && me.is_admin) && !hasPaid(); }
+function showQFLockPopup(){
+  const name=(me&&me.username)?esc(me.username):"";
+  const hello=name?`<b style="color:#ffb27a">${name}</b>, `:"";
+  showPopup(`
+    <button class="x" id="popupClose">✕</button>
+    <div class="qf-lockic">🔒</div>
+    <h3 class="pop-h" style="color:#ff9e5a">Çeyrek Final Kilitli</h3>
+    <p class="pop-p">${hello}çeyrek finallere tahmin yapabilmek için önce ödül havuzuna <b>5 €</b> katkıda bulunman gerekiyor.<br>
+      <b>5 €</b>'unu <b>Cost odasına</b> bırak, çeyrek final ve sonrası tahminlere hemen açılsın 🙌</p>
+    <button class="pop-btn" id="popupClose2"
+      style="background:linear-gradient(135deg,#ff8c42,#ffb27a);color:#151007">Anladım</button>`);
 }
 function renderSortFilters(){
   const box=$("#sortFilters");
@@ -1435,6 +1459,7 @@ async function trySave(mid,box){
   if(isNaN(hv)||isNaN(av)) return;
   const m=matches.find(x=>x.id===mid);
   if(!m || isLocked(m)) return;
+  if(m.stage==="qf" && qfLocked()){ showQFLockPopup(); return; } // çeyrek final: katkı gerekli
   try{
     const {error}=await sb.from("predictions").upsert(
       {user_id:session.user.id,match_id:mid,home:hv,away:av,updated_at:new Date().toISOString()},
@@ -2667,6 +2692,7 @@ function bindStaticUI(){
   document.addEventListener("click",e=>{ const b=e.target.closest("[data-allpreds]"); if(b) openMatchPreds(+b.dataset.allpreds); });
   document.addEventListener("click",e=>{ const b=e.target.closest("[data-odds]"); if(b) showOddsTable(+b.dataset.odds); });
   document.addEventListener("click",e=>{ const g=e.target.closest("g.brk-g.clk[data-mid]"); if(g) openMatchPreds(+g.dataset.mid); });
+  document.addEventListener("click",e=>{ if(e.target.closest("[data-qflock]")) showQFLockPopup(); });
   document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ closeModal(); closePopup(); } });
 }
 
