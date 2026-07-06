@@ -1902,8 +1902,8 @@ function showPrizePopup(){
   });
 }
 // Ödeyenlere tek seferlik teşekkür pop-up'ı
-function prizeThanksSeen(uid){ try{ return localStorage.getItem("wcPrizeThanks_"+uid)==="1"; }catch(e){ return false; } }
-function markPrizeThanksSeen(uid){ try{ localStorage.setItem("wcPrizeThanks_"+uid,"1"); }catch(e){} }
+function prizeThanksSeen(uid){ try{ return localStorage.getItem("wcPrizeLeft_"+uid)==="1"; }catch(e){ return false; } }
+function markPrizeThanksSeen(uid){ try{ localStorage.setItem("wcPrizeLeft_"+uid,"1"); }catch(e){} }
 function showPrizeThanks(){
   const paid=paidSet();
   const players=profiles.filter(p=>!isHiddenUser(p.username));
