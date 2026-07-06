@@ -1739,6 +1739,8 @@ function buildStatCandidates(){
       out.push({id:m.id+"|allright", m, ic:"🎯", tone:"ok", short:"Herkes bildi", title:"Bu maçın sonucunu herkes bildi! Fevkalade"});
     if(everyone && wrongCount===1)
       out.push({id:m.id+"|onewrong", m, ic:"😬", tone:"warn", short:"Sadece 1 kişi bilemedi", title:"Bu maçın sonucunu sadece 1 kişi bilemedi! Talihsiz"});
+    if(everyone && np>1 && wrongCount===np-1)
+      out.push({id:m.id+"|oneright", m, ic:"🦉", tone:"ok", short:"Sadece 1 kişi bildi", title:"Bu maçın sonucunu sadece 1 kişi bildi! Kâhin gibi"});
     if(exactCount>=3)
       out.push({id:m.id+"|exact", m, ic:"🤯", tone:"ok", short:`${exactCount} kişi tam skoru bildi`, title:`Bu maçın tam skorunu ${exactCount} kişi bildi! İnanılmaz`});
   });
