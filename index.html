@@ -397,6 +397,19 @@ nav.tabs button:hover{color:var(--ink)}
 .left-chip{background:#2a1d10;border:1px solid rgba(255,158,61,.45);color:#ffcf9a;font-weight:800;
   font-size:13.5px;border-radius:999px;padding:5px 14px}
 .left-sub{font-size:12.5px;color:var(--muted);margin-bottom:14px}
+/* Katkı tamamlanma topu — masaüstü, sağ altta sabit, sadece ödeyenlere */
+#pledgeWidget{position:fixed;right:18px;bottom:18px;z-index:60;width:176px;
+  background:linear-gradient(180deg,#12241a,#0c1b13);border:1px solid var(--line2);border-radius:16px;
+  padding:12px 12px 11px;box-shadow:0 16px 42px -12px rgba(0,0,0,.65);text-align:center}
+@media(max-width:900px){#pledgeWidget{display:none!important}}
+.pw-ball{position:relative;width:112px;height:112px;margin:0 auto 8px}
+.pw-ball img{width:100%;height:100%;object-fit:contain;display:block}
+.pw-pie{position:absolute;inset:0;width:100%;height:100%;filter:drop-shadow(0 2px 4px rgba(0,0,0,.3))}
+.pw-count{font-size:11.5px;color:var(--muted);font-weight:700;line-height:1.4}
+.pw-count b{display:block;color:var(--gold2);font-size:19px;margin-top:2px}
+.pw-deb{margin-top:8px;font-size:10.5px;color:#ffcf9a;line-height:1.45;border-top:1px solid var(--line);padding-top:6px}
+.pw-deb span{color:var(--muted);font-weight:800}
+.pw-deb.done{color:#9fe6b8;border-top-color:rgba(126,224,163,.25)}
 /* Admin: ödeyenler chip listesi */
 .paid-chips{display:flex;flex-wrap:wrap;gap:7px}
 .paid-chip{display:inline-flex;align-items:center;gap:6px;background:#13261c;border:1px solid var(--line2);
@@ -2645,6 +2658,44 @@ function renderAll(){
   assignColors();
   renderRibbon(); renderStageFilters(); renderGroupFilters(); renderSortFilters();
   renderMatches(); renderLeaderboard(); renderLeaderboardTab(); renderChart(); renderStats(); renderChampMini(); renderBracket();
+  renderPledgeWidget();
+}
+// Masaüstü, sadece ödeyenlere: sağ altta sabit "katkı tamamlanma" topu + eksik isimler
+function renderPledgeWidget(){
+  let el=$("#pledgeWidget");
+  if(!el){ el=document.createElement("div"); el.id="pledgeWidget"; document.body.appendChild(el); }
+  const paidS=paidSet();
+  const players=profiles.filter(p=>!isHiddenUser(p.username));
+  const total=players.length;
+  const paid=players.filter(p=>paidS.has(p.id)).length;
+  const debtors=players.filter(p=>!paidS.has(p.id)).map(p=>p.username).sort((a,b)=>a.localeCompare(b,"tr"));
+  // Sadece katkı sağlayanlar görür (ve mesaj açıkken)
+  if(!hasPaid() || appConfig.prize_on!=="1" || total===0){ el.style.display="none"; el.innerHTML=""; return; }
+  el.style.display="";
+  const ball="https://assets.adidas.com/images/w_500,f_auto,q_auto/3f6dcc811fbe49a38397134fbfc5c3f9_9366/Trionda_FIFA_Fussball-Weltmeisterschaft_26tm_Trainingsball_Weiss_JD8032_01_00_standard.jpg";
+  const size=112, r=size/2, cx=r, cy=r, R=r-1.5;
+  const step=2*Math.PI/total, start=-Math.PI/2;
+  const wedge=(a1,a2)=>{
+    const x1=cx+R*Math.cos(a1), y1=cy+R*Math.sin(a1);
+    const x2=cx+R*Math.cos(a2), y2=cy+R*Math.sin(a2);
+    const large=(a2-a1)>Math.PI?1:0;
+    return `M${cx},${cy} L${x1.toFixed(2)},${y1.toFixed(2)} A${R},${R} 0 ${large} 1 ${x2.toFixed(2)},${y2.toFixed(2)} Z`;
+  };
+  let slices="";
+  for(let i=0;i<total;i++){
+    const a1=start+i*step, a2=start+(i+1)*step;
+    const filled=i<paid;
+    slices+=`<path d="${wedge(a1,a2)}" fill="${filled?'rgba(126,224,163,.45)':'rgba(10,20,14,.05)'}" stroke="rgba(255,255,255,.6)" stroke-width="1"/>`;
+  }
+  el.innerHTML=`
+    <div class="pw-ball">
+      <img src="${ball}" alt="" loading="lazy">
+      <svg viewBox="0 0 ${size} ${size}" class="pw-pie" xmlns="http://www.w3.org/2000/svg">${slices}</svg>
+    </div>
+    <div class="pw-count">Ödüle katkıda bulunan kişi sayısı<br><b>${paid}/${total}</b></div>
+    ${debtors.length
+      ? `<div class="pw-deb"><span>Eksik:</span> ${debtors.map(esc).join(", ")}</div>`
+      : `<div class="pw-deb done">Herkes katkıda bulundu 🎉</div>`}`;
 }
 function renderChampMini(){
   const el=$("#champMini"); if(!el) return;
