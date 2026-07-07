@@ -380,6 +380,9 @@ nav.tabs button:hover{color:var(--ink)}
 @media(max-width:420px){.pay-lists{flex-direction:column}}
 .pay-count{font-size:13px;color:var(--muted);font-weight:700;margin:2px 0 14px}
 .pay-count b{color:var(--gold2)}
+/* Lider tablosu: kalan maç / max puan kutusu */
+.lb-remain{margin-top:8px;padding-top:8px;border-top:1px solid var(--line);font-size:13px;color:var(--ink);line-height:1.6}
+.lb-remain b{color:#fff}
 /* 5€ pop-up kapatma geri sayımı */
 .pop-btn.cd-wait{background:#2a2f2b !important;color:#8fa298 !important;cursor:not-allowed;
   box-shadow:none !important;opacity:.9;position:relative}
@@ -2675,7 +2678,11 @@ function renderLeaderboardTab(){
   const box=$("#tab-leaderboard");
   if(!box) return;
   if(!rows.length){ box.innerHTML=`<div class="empty">Henüz oyuncu yok.</div>`; return; }
-  box.innerHTML=`<div class="lb-hint tabhint">Kişilere tıklayarak biten maçlardaki tahminlerini görebilirsiniz. Canlı maç sonuçları puanları anlık değiştirebilir, kesin puanlar maç sonucunda belirlenir.</div>`+
+  const remaining=matches.filter(m=> !m.finished && !isInPlay(m));
+  const remMax=remaining.reduce((s,m)=> s + scoringFor(m.stage).exact, 0);
+  box.innerHTML=`<div class="lb-hint tabhint">Kişilere tıklayarak biten maçlardaki tahminlerini görebilirsiniz. Canlı sonuçlar puanları anlık değiştirir; kesin puan maç bitince belli olur.
+    <div class="lb-remain">🎯 <b>Kalan maç: ${remaining.length}</b><br>
+      Standart skorla en fazla <b>${remMax.toLocaleString("tr-TR")} puan</b> alınabilir <b style="color:var(--gold2)">+ Şampiyon Tahmin Bonusu</b></div></div>`+
     (lbHasLive?`<div class="lb-livestrip" style="margin-bottom:10px"><span class="livedot"></span>CANLI — puanlar maç bitene kadar geçici</div>`:"")+
     `<div class="panel" style="margin-top:4px">`+
     rows.map(lbRowHTML).join("")+`</div>`;
