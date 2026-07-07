@@ -134,6 +134,8 @@ nav.tabs button:hover{color:var(--ink)}
 /* Şema sekmesi: sağ paneli gizle, tam genişlik kullan (şema büyüsün) */
 #appScreen.brk-tab .col-right{display:none}
 #appScreen.brk-tab .wrap{grid-template-columns:1fr;max-width:1560px}
+#appScreen.win-tab .col-right{display:none}
+#appScreen.win-tab .wrap{grid-template-columns:1fr;max-width:1180px}
 
 /* ===== FILTER PILLS ===== */
 .filters{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
@@ -383,6 +385,28 @@ nav.tabs button:hover{color:var(--ink)}
 /* Lider tablosu: kalan maç / max puan kutusu */
 .lb-remain{margin-top:8px;padding-top:8px;border-top:1px solid var(--line);font-size:13px;color:var(--ink);line-height:1.6}
 .lb-remain b{color:#fff}
+/* Kazanma Olasılığı sekmesi */
+.wc-intro{font-size:13px;color:var(--ink);line-height:1.5;background:linear-gradient(180deg,#12241a,#0d1b13);
+  border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:12px;padding:11px 14px;margin-bottom:14px}
+.wc-intro b{color:var(--gold2)}
+.wc-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:14px}
+.wc-table{width:100%;border-collapse:collapse;font-size:13px;min-width:560px}
+.wc-table th{background:#13241a;color:var(--gold2);font-size:11px;text-transform:uppercase;letter-spacing:.3px;
+  font-weight:800;padding:10px 8px;text-align:center;white-space:nowrap;border-bottom:1px solid var(--line2)}
+.wc-table th:nth-child(2){text-align:left}
+.wc-table td{padding:9px 8px;text-align:center;border-top:1px solid var(--line);color:var(--ink);font-weight:700}
+.wc-table tbody tr:nth-child(1){background:rgba(212,175,55,.08)}
+.wc-rank{font-weight:900;color:var(--muted)}
+.wc-table tbody tr:nth-child(1) .wc-rank{color:var(--gold)}
+.wc-name{text-align:left !important;display:flex;align-items:center;gap:8px;font-weight:800;color:#fff;white-space:nowrap}
+.wc-av{width:24px;height:24px;flex:0 0 auto;border-radius:50%;overflow:hidden;display:inline-flex}
+.wc-av img{width:100%;height:100%;object-fit:cover}
+.wc-pct{position:relative;min-width:96px;font-weight:900}
+.wc-bar{position:absolute;left:0;top:3px;bottom:3px;border-radius:6px;
+  background:linear-gradient(90deg,rgba(212,175,55,.25),rgba(212,175,55,.5));z-index:0}
+.wc-pct span{position:relative;z-index:1;color:var(--gold2)}
+.wc-table tbody tr:nth-child(1) .wc-pct span{color:#ffe27a}
+.wc-legend{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5}
 /* 5€ pop-up kapatma geri sayımı */
 .pop-btn.cd-wait{background:#2a2f2b !important;color:#8fa298 !important;cursor:not-allowed;
   box-shadow:none !important;opacity:.9;position:relative}
@@ -739,6 +763,7 @@ nav.tabs button:hover{color:var(--ink)}
     <button data-tab="bracket">Şema</button>
     <button data-tab="how">Nasıl Oynanır</button>
     <button data-tab="leaderboard">Lider Tablosu</button>
+    <button data-tab="winchance">Kazanma %</button>
     <button data-tab="chart">Grafik</button>
     <button data-tab="stats">İstatistikler</button>
     <button data-tab="admin" id="adminTab" class="hidden">Yönetim</button>
@@ -811,6 +836,11 @@ nav.tabs button:hover{color:var(--ink)}
 
       <!-- LEADERBOARD TAB -->
       <section id="tab-leaderboard" class="hidden"></section>
+
+      <!-- WIN CHANCE -->
+      <section id="tab-winchance" class="hidden">
+        <div id="winchanceList"><div class="loading"><div class="spin"></div>Hesaplanıyor…</div></div>
+      </section>
 
       <!-- CHART TAB -->
       <section id="tab-chart" class="hidden">
@@ -1597,6 +1627,78 @@ function lbRowHTML(r){
       ${st2}</div>
     <div class="lbpts">${r.pts}<small>PUAN</small></div>
   </div>`;
+}
+// ===== KAZANMA OLASILIĞI (tahmini şampiyonluk yüzdesi) =====
+function computeWinChance(){
+  const players=profiles.filter(p=>!isHiddenUser(p.username));
+  if(!players.length) return [];
+  const finished=matches.filter(m=>m.finished && m.home_score!=null && m.away_score!=null && new Date(m.kickoff)>=CUTOFF)
+    .sort((a,b)=> new Date(a.kickoff)-new Date(b.kickoff));
+  const remaining=matches.filter(m=> !m.finished && !isInPlay(m));
+  const maxRemain=remaining.reduce((s,m)=> s+scoringFor(m.stage).exact,0);
+  const progress = (finished.length+remaining.length)>0 ? finished.length/(finished.length+remaining.length) : 0;
+  const last10=finished.slice(-10), last20=finished.slice(-20);
+  const predByUser={};
+  predsAll.forEach(p=>{ (predByUser[p.user_id]=predByUser[p.user_id]||{})[p.match_id]=p; });
+  const rows=players.map(pl=>{
+    const uid=pl.id, t=userTotals(uid), pm=predByUser[uid]||{};
+    let form=0; last10.forEach(m=>{ const g=grade(pm[m.id]||null,m); if(g) form+=g.pts; });
+    let oneSide=0; last20.forEach(m=>{ const pr=pm[m.id]; if(pr && (pr.home===m.home_score || pr.away===m.away_score)) oneSide++; });
+    let goals=0, off1=0;
+    finished.forEach(m=>{ const pr=pm[m.id]; if(!pr) return;
+      if((pr.home+pr.away)===(m.home_score+m.away_score)) goals++;
+      if(Math.abs(pr.home-m.home_score)+Math.abs(pr.away-m.away_score)===1) off1++;
+    });
+    return {uid, username:pl.username, fav:pl.fav_team, P:t.pts, E:t.exact, O:t.outc,
+            form, oneSide, goals, off1, close:goals+off1, hit:t.exact*2+t.outc, ceil:t.pts+maxRemain};
+  });
+  const norm=key=>{ const mx=Math.max(...rows.map(r=>r[key]),0); return mx>0?(v=>v/mx):(()=>0); };
+  const nP=norm("P"), nHit=norm("hit"), nForm=norm("form"), nOne=norm("oneSide"), nClose=norm("close");
+  // Mevcut puanın ağırlığı, turnuva ilerledikçe (kalan maç azaldıkça) artar
+  const pw=0.40+0.35*progress, rest=1-pw;
+  const wHit=rest*0.35, wForm=rest*0.30, wOne=rest*0.20, wClose=rest*0.15;
+  const leaderP=Math.max(...rows.map(r=>r.P),0);
+  rows.forEach(r=>{
+    const S = pw*nP(r.P) + wHit*nHit(r.hit) + wForm*nForm(r.form) + wOne*nOne(r.oneSide) + wClose*nClose(r.close);
+    const alive = (r.ceil>=leaderP) ? 1 : 0.04; // lideri matematiksel yakalayamıyorsa çok düşük
+    r.S=Math.max(S*alive, 0.0001);
+  });
+  const gamma=2.6, pow=rows.map(r=>Math.pow(r.S,gamma)), sum=pow.reduce((a,b)=>a+b,0)||1;
+  rows.forEach((r,i)=>{ r.prob=pow[i]/sum*100; });
+  rows.sort((a,b)=> b.prob-a.prob || b.P-a.P);
+  return rows;
+}
+function renderWinChance(){
+  const box=$("#winchanceList"); if(!box) return;
+  const rows=computeWinChance();
+  if(!rows.length){ box.innerHTML=`<div class="empty">Henüz oyuncu yok.</div>`; return; }
+  const body=rows.map((r,i)=>`
+    <tr>
+      <td class="wc-rank">${i+1}</td>
+      <td class="wc-name"><span class="wc-av">${avatarInner(r.username,r.fav)}</span><span>${esc(r.username)}</span></td>
+      <td><b>${r.P}</b></td>
+      <td>${r.E}/${r.O}</td>
+      <td>${r.form}</td>
+      <td>${r.oneSide}</td>
+      <td>${r.goals}/${r.off1}</td>
+      <td class="wc-pct"><div class="wc-bar" style="width:${Math.min(100,r.prob).toFixed(1)}%"></div><span>%${r.prob.toFixed(1)}</span></td>
+    </tr>`).join("");
+  box.innerHTML=`
+    <div class="wc-intro">🔮 <b>Tahmini şampiyonluk olasılığı.</b> Mevcut puan (kalan maç azaldıkça daha ağır basar), isabet (tam skor/sonuç adedi), son form, tek taraf bilme ve gol yakınlığı harmanlanır. Eğlence amaçlı, kesin değildir.</div>
+    <div class="wc-wrap">
+      <table class="wc-table">
+        <thead><tr>
+          <th>#</th><th>Oyuncu</th><th>Puan</th>
+          <th title="Tam skor / Doğru sonuç adedi">Tam/Snç</th>
+          <th title="Son 10 maçtan toplanan puan (form)">Form10</th>
+          <th title="Son 20 maçta tek tarafı doğru bilme">Tek20</th>
+          <th title="Toplam golü bilme / 1 farkla kaçırma">Gol/1F</th>
+          <th>Kazanma %</th>
+        </tr></thead>
+        <tbody>${body}</tbody>
+      </table>
+    </div>
+    <div class="wc-legend">Tam/Snç: tam skor / doğru sonuç · Form10: son 10 maç puanı · Tek20: son 20'de tek tarafı bilme · Gol/1F: toplam golü bilme / 1 farkla kaçırma</div>`;
 }
 function remainInfoHTML(){
   const remaining=matches.filter(m=> !m.finished && !isInPlay(m));
@@ -2667,15 +2769,18 @@ function switchTab(t){
   show($("#tab-bracket"),t==="bracket");
   show($("#tab-how"),t==="how");
   show($("#tab-leaderboard"),t==="leaderboard");
+  show($("#tab-winchance"),t==="winchance");
   show($("#tab-chart"),t==="chart");
   show($("#tab-stats"),t==="stats");
   show($("#tab-admin"),t==="admin");
   // mobilde Lider Tablosu sekmesindeyken sağdaki kopya tabloyu gizle
   $("#appScreen").classList.toggle("lb-tab", t==="leaderboard");
   $("#appScreen").classList.toggle("brk-tab", t==="bracket");
+  $("#appScreen").classList.toggle("win-tab", t==="winchance");
   if(t==="admin"){ renderAdminFilters(); renderAdmin(); }
   if(t==="leaderboard"){ renderLeaderboardTab(); }
   if(t==="bracket"){ renderBracket(); }
+  if(t==="winchance"){ renderWinChance(); }
   if(t==="chart"){ renderChart(); }
   if(t==="stats"){ renderStats(); }
   if(t!=="admin") maybeNudgePrize(); // ödemeyenlere sekme geçişinde de hatırlat
@@ -2696,7 +2801,7 @@ function renderLeaderboardTab(){
 function renderAll(){
   assignColors();
   renderRibbon(); renderStageFilters(); renderGroupFilters(); renderSortFilters();
-  renderMatches(); renderLeaderboard(); renderLeaderboardTab(); renderChart(); renderStats(); renderChampMini(); renderBracket();
+  renderMatches(); renderLeaderboard(); renderLeaderboardTab(); renderChart(); renderStats(); renderChampMini(); renderBracket(); renderWinChance();
   renderPledgeWidget();
 }
 // Masaüstü, sadece ödeyenlere: sağ altta sabit "katkı tamamlanma" topu + eksik isimler
