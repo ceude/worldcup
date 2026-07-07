@@ -1871,7 +1871,7 @@ function showOddsTable(mid){
 }
 function showPrizePopup(){
   const ball="https://assets.adidas.com/images/w_500,f_auto,q_auto/3f6dcc811fbe49a38397134fbfc5c3f9_9366/Trionda_FIFA_Fussball-Weltmeisterschaft_26tm_Trainingsball_Weiss_JD8032_01_00_standard.jpg";
-  const url="https://www.intersport.de/p/adidas-ball-fifa-world-cup-26-trionda-league-p2244964?articleId=a203246199";
+  const url="https://www.intersport.de/p/adidas-ball-world-cup-league-p2235129?articleId=a203124839";
   const paid=paidSet();
   const players=profiles.filter(p=>!isHiddenUser(p.username)).sort((a,b)=>a.username.localeCompare(b.username,"tr"));
   const payers=players.filter(p=>paid.has(p.id));
@@ -2716,7 +2716,7 @@ function renderPledgeWidget(){
     slices+=`<path d="${wedge(a1,a2)}" fill="${filled?'rgba(126,224,163,.45)':'rgba(10,20,14,.05)'}" stroke="rgba(255,255,255,.6)" stroke-width="1"/>`;
   }
   el.innerHTML=`
-    <a class="pw-ball" href="https://www.intersport.de/p/adidas-ball-fifa-world-cup-26-trionda-league-p2244964?articleId=a203246199" target="_blank" rel="noopener" title="Ödülü gör">
+    <a class="pw-ball" href="https://www.intersport.de/p/adidas-ball-world-cup-league-p2235129?articleId=a203124839" target="_blank" rel="noopener" title="Ödülü gör">
       <img src="${ball}" alt="" loading="lazy">
       <svg viewBox="0 0 ${size} ${size}" class="pw-pie" xmlns="http://www.w3.org/2000/svg">${slices}</svg>
       <span class="pw-cta">Ödülü Gör →</span>
