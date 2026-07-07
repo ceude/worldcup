@@ -841,7 +841,7 @@ nav.tabs button:hover{color:var(--ink)}
       <div class="panel champ-mini hidden" id="champMini"></div>
       <div class="panel" style="margin-bottom:16px">
         <div class="ph"><span class="ico">🏅</span><h3>Lider Tablosu</h3></div>
-        <div class="lb-hint">Kişilere tıklayarak biten maçlardaki tahminlerini görebilirsiniz. Canlı maç sonuçları puanları anlık değiştirebilir, kesin puanlar maç sonucunda belirlenir.</div>
+        <div class="lb-hint lb-remain" id="lbHintSide"></div>
         <div id="leaderboard"><div style="padding:24px;text-align:center;color:var(--muted)">Yükleniyor…</div></div>
       </div>
       <div class="panel">
@@ -1598,8 +1598,14 @@ function lbRowHTML(r){
     <div class="lbpts">${r.pts}<small>PUAN</small></div>
   </div>`;
 }
+function remainInfoHTML(){
+  const remaining=matches.filter(m=> !m.finished && !isInPlay(m));
+  const remMax=remaining.reduce((s,m)=> s + scoringFor(m.stage).exact, 0);
+  return `🎯 <b>Kalan maç: ${remaining.length}</b><br>Standart skorla en fazla <b>${remMax.toLocaleString("tr-TR")} puan DAHA</b> alınabilir <b style="color:var(--gold2)">+ Şampiyon Tahmin Bonusu</b>`;
+}
 function renderLeaderboard(){
   const rows=buildLeaderboard();
+  const side=$("#lbHintSide"); if(side) side.innerHTML=remainInfoHTML();
   const box=$("#leaderboard");
   if(!rows.length){ box.innerHTML=`<div style="padding:24px;text-align:center;color:var(--muted)">Henüz oyuncu yok.</div>`; return; }
   const liveStrip = lbHasLive ? `<div class="lb-livestrip"><span class="livedot"></span>CANLI — puanlar maç bitene kadar geçici</div>` : "";
@@ -2678,11 +2684,8 @@ function renderLeaderboardTab(){
   const box=$("#tab-leaderboard");
   if(!box) return;
   if(!rows.length){ box.innerHTML=`<div class="empty">Henüz oyuncu yok.</div>`; return; }
-  const remaining=matches.filter(m=> !m.finished && !isInPlay(m));
-  const remMax=remaining.reduce((s,m)=> s + scoringFor(m.stage).exact, 0);
   box.innerHTML=`<div class="lb-hint tabhint">Kişilere tıklayarak biten maçlardaki tahminlerini görebilirsiniz. Canlı sonuçlar puanları anlık değiştirir; kesin puan maç bitince belli olur.
-    <div class="lb-remain">🎯 <b>Kalan maç: ${remaining.length}</b><br>
-      Standart skorla en fazla <b>${remMax.toLocaleString("tr-TR")} puan</b> alınabilir <b style="color:var(--gold2)">+ Şampiyon Tahmin Bonusu</b></div></div>`+
+    <div class="lb-remain">${remainInfoHTML()}</div></div>`+
     (lbHasLive?`<div class="lb-livestrip" style="margin-bottom:10px"><span class="livedot"></span>CANLI — puanlar maç bitene kadar geçici</div>`:"")+
     `<div class="panel" style="margin-top:4px">`+
     rows.map(lbRowHTML).join("")+`</div>`;
