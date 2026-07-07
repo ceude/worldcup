@@ -387,26 +387,22 @@ nav.tabs button:hover{color:var(--ink)}
 .wc-intro{font-size:13px;color:var(--ink);line-height:1.5;background:linear-gradient(180deg,#12241a,#0d1b13);
   border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:12px;padding:11px 14px;margin-bottom:14px}
 .wc-intro b{color:var(--gold2)}
-/* Kazanma Olasılığı — kart düzeni (mobil + masaüstü uyumlu) */
-.wc-cards{display:flex;flex-direction:column;gap:10px}
-.wc-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:11px 13px}
+/* Kazanma Olasılığı — kompakt kart düzeni (tek ekrana sığar) */
+.wc-cards{display:flex;flex-direction:column;gap:7px}
+.wc-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:7px 11px}
 .wc-card.top{border-color:rgba(212,175,55,.5);background:linear-gradient(180deg,rgba(212,175,55,.08),transparent)}
-.wc-c-head{display:flex;align-items:center;gap:9px}
-.wc-c-rank{flex:0 0 auto;width:22px;text-align:center;font-weight:900;color:var(--muted);font-size:14px}
+.wc-c-head{display:flex;align-items:center;gap:8px}
+.wc-c-rank{flex:0 0 auto;width:18px;text-align:center;font-weight:900;color:var(--muted);font-size:13px}
 .wc-card.top .wc-c-rank{color:var(--gold)}
-.wc-av{width:30px;height:30px;flex:0 0 auto;border-radius:50%;overflow:hidden;display:inline-flex}
+.wc-av{width:26px;height:26px;flex:0 0 auto;border-radius:50%;overflow:hidden;display:inline-flex}
 .wc-av img{width:100%;height:100%;object-fit:cover}
-.wc-c-name{flex:1;min-width:0;font-weight:800;color:#fff;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.wc-c-pct{flex:0 0 auto;font-weight:900;font-size:19px;color:var(--gold2)}
+.wc-c-name{flex:1;min-width:0;font-weight:800;color:#fff;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wc-c-pct{flex:0 0 auto;font-weight:900;font-size:17px;color:var(--gold2)}
 .wc-card.top .wc-c-pct{color:#ffe27a}
-.wc-c-bar{height:6px;border-radius:6px;background:#0e1c14;margin:8px 0 9px;overflow:hidden}
-.wc-c-bar>div{height:100%;border-radius:6px;background:linear-gradient(90deg,rgba(212,175,55,.5),var(--gold))}
-.wc-c-metrics{display:flex;flex-wrap:wrap;gap:6px}
-.wc-m{display:flex;flex-direction:column;align-items:center;gap:1px;background:#0f1d15;border:1px solid var(--line);
-  border-radius:9px;padding:5px 10px;min-width:58px;flex:1 1 auto}
-.wc-m i{font-style:normal;font-size:9.5px;text-transform:uppercase;letter-spacing:.3px;color:var(--muted);font-weight:800}
-.wc-m b{font-size:14px;color:#fff;font-weight:800}
-.wc-legend{font-size:11px;color:var(--muted);margin-top:10px;line-height:1.5}
+.wc-c-bar{height:4px;border-radius:4px;background:#0e1c14;margin:5px 0 4px;overflow:hidden}
+.wc-c-bar>div{height:100%;border-radius:4px;background:linear-gradient(90deg,rgba(212,175,55,.5),var(--gold))}
+.wc-c-metrics{font-size:11px;color:var(--muted);font-weight:600;line-height:1.35}
+.wc-c-metrics b{color:#fff;font-weight:800}
 /* 5€ pop-up kapatma geri sayımı */
 .pop-btn.cd-wait{background:#2a2f2b !important;color:#8fa298 !important;cursor:not-allowed;
   box-shadow:none !important;opacity:.9;position:relative}
@@ -1672,7 +1668,6 @@ function renderWinChance(){
   const box=$("#winchanceList"); if(!box) return;
   const rows=computeWinChance();
   if(!rows.length){ box.innerHTML=`<div class="empty">Henüz oyuncu yok.</div>`; return; }
-  const metric=(lab,val)=>`<span class="wc-m"><i>${lab}</i><b>${val}</b></span>`;
   const cards=rows.map((r,i)=>`
     <div class="wc-card${i===0?' top':''}">
       <div class="wc-c-head">
@@ -1682,18 +1677,11 @@ function renderWinChance(){
         <span class="wc-c-pct">%${r.prob.toFixed(1)}</span>
       </div>
       <div class="wc-c-bar"><div style="width:${Math.min(100,r.prob).toFixed(1)}%"></div></div>
-      <div class="wc-c-metrics">
-        ${metric("Puan", r.P)}
-        ${metric("Tam/Snç", r.E+"/"+r.O)}
-        ${metric("Form10", r.form)}
-        ${metric("Tek20", r.oneSide)}
-        ${metric("Gol/1F", r.goals+"/"+r.off1)}
-      </div>
+      <div class="wc-c-metrics">Puan <b>${r.P}</b> · T/S <b>${r.E}/${r.O}</b> · Form <b>${r.form}</b> · Tek <b>${r.oneSide}</b> · G/1F <b>${r.goals}/${r.off1}</b></div>
     </div>`).join("");
   box.innerHTML=`
-    <div class="wc-intro">🔮 <b>Tahmini şampiyonluk olasılığı.</b> Mevcut puan, isabet (tam skor/sonuç adedi), son form, tek taraf bilme ve gol yakınlığı harmanlanır. Eğlence amaçlıdır.</div>
-    <div class="wc-cards">${cards}</div>
-    <div class="wc-legend">Tam/Snç: tam skor / doğru sonuç · Form10: son 10 maç puanı · Tek20: son 20'de tek tarafı bilme · Gol/1F: toplam golü bilme / 1 farkla kaçırma</div>`;
+    <div class="wc-intro">🔮 <b>Tahmini şampiyonluk olasılığı.</b> Mevcut puan, isabet (tam skor/sonuç), son form, tek taraf bilme ve gol yakınlığı harmanlanır. Eğlence amaçlıdır.</div>
+    <div class="wc-cards">${cards}</div>`;
 }
 function remainInfoHTML(){
   const remaining=matches.filter(m=> !m.finished && !isInPlay(m));
