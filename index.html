@@ -380,6 +380,13 @@ nav.tabs button:hover{color:var(--ink)}
 @media(max-width:420px){.pay-lists{flex-direction:column}}
 .pay-count{font-size:13px;color:var(--muted);font-weight:700;margin:2px 0 14px}
 .pay-count b{color:var(--gold2)}
+/* 5€ pop-up kapatma geri sayımı */
+.pop-btn.cd-wait{background:#2a2f2b !important;color:#8fa298 !important;cursor:not-allowed;
+  box-shadow:none !important;opacity:.9;position:relative}
+.pop-btn.cd-ready{background:linear-gradient(135deg,var(--cda,#ff8c42),var(--cdb,#ffb27a)) !important;
+  color:#151007 !important;cursor:pointer;animation:cdReady .5s ease;box-shadow:0 0 0 0 rgba(255,255,255,.5)}
+@keyframes cdReady{0%{transform:scale(.96);box-shadow:0 0 0 0 rgba(255,255,255,.55)}
+  60%{transform:scale(1.04)}100%{transform:scale(1);box-shadow:0 10px 26px -8px rgba(0,0,0,.5)}}
 /* Çeyrek final kilidi */
 .qf-lockic{font-size:44px;text-align:center;margin:2px 0 2px}
 .qf-locknote{font-size:11px;font-weight:800;color:#ffb27a;background:#2a1d10;border:1px solid rgba(255,140,66,.35);
@@ -1208,18 +1215,15 @@ function matchCard(m){
     center=`<div class="actual live"><div class="sc">${m.home_score} – ${m.away_score}</div><div class="lab"><span class="livedot"></span>CANLI</div></div>`;
   }else{
     const hv=pred?pred.home:"", av=pred?pred.away:"";
-    const payLock = (m.stage==="qf") && qfLocked();
-    const dis=(locked||payLock)?"disabled":"";
+    const dis=locked?"disabled":"";
     const act=pred?"act":"";
-    const dp = (!payLock && DYNAMIC_STAGES.has(m.stage)&&oddsOf(m)) ? dynPtsLine(m, hv, av) : "";
-    const lockNote = payLock ? `<div class="qf-locknote" data-qflock="1">🔒 Tahmin için 5 € katkı gerekli</div>` : "";
+    const dp = (DYNAMIC_STAGES.has(m.stage)&&oddsOf(m)) ? dynPtsLine(m, hv, av) : "";
     center=`<div class="scorebox-wrap">
       <div class="scorebox">
         <input class="si ${act}" data-m="${m.id}" data-side="h" type="number" min="0" max="99" inputmode="numeric" value="${hv}" ${dis}>
         <span class="dash">–</span>
         <input class="si ${act}" data-m="${m.id}" data-side="a" type="number" min="0" max="99" inputmode="numeric" value="${av}" ${dis}>
       </div>
-      ${lockNote}
       <div class="dynpts" id="dynpts-${m.id}">${dp}</div>
     </div>`;
   }
@@ -1381,7 +1385,6 @@ function renderStageFilters(){
     `<button class="pill ${s.k===curStage?"on":""}" data-stage="${s.k}">${s.label}</button>`).join("");
   $("#stageFilters").querySelectorAll(".pill").forEach(b=>b.onclick=()=>{
     curStage=b.dataset.stage; curGroup="ALL"; renderStageFilters(); renderGroupFilters(); renderSortFilters(); renderMatches();
-    if(curStage==="qf" && qfLocked()) showQFLockPopup();
   });
 }
 // Çeyrek final tahminleri sadece katkı sağlayanlara açık (admin muaf)
@@ -1484,7 +1487,6 @@ async function trySave(mid,box){
   if(isNaN(hv)||isNaN(av)) return;
   const m=matches.find(x=>x.id===mid);
   if(!m || isLocked(m)) return;
-  if(m.stage==="qf" && qfLocked()){ showQFLockPopup(); return; } // çeyrek final: katkı gerekli
   try{
     const {error}=await sb.from("predictions").upsert(
       {user_id:session.user.id,match_id:mid,home:hv,away:av,updated_at:new Date().toISOString()},
@@ -1720,7 +1722,7 @@ function openMatchPreds(mid){
 }
 
 /* ===== Açılış pop-up'ları ===== */
-function closePopup(){ const p=$("#popup"); if(p) p.classList.remove("show"); }
+function closePopup(){ if(window._popupLocked) return; const p=$("#popup"); if(p) p.classList.remove("show"); }
 function showPopup(html){
   $("#popupCard").innerHTML=html;
   $("#popup").classList.add("show");
@@ -1894,7 +1896,7 @@ function showPrizePopup(){
   const name=(me&&me.username)?esc(me.username):"";
   const hello = name ? `<b style="color:${th.a}">${name}</b>, ` : "";
   showPopup(`
-    <button class="x" id="popupClose">✕</button>
+    <button class="x" id="popupClose" style="display:none">✕</button>
     <div style="display:inline-block;background:${th.a};color:#151007;font-weight:900;font-size:11px;
       letter-spacing:.6px;padding:5px 13px;border-radius:999px;margin:2px 0 4px">⏳ SENİ BEKLİYORUZ</div>
     <a class="prize-ball" href="${url}" target="_blank" rel="noopener" title="Ödülü gör"
@@ -1906,13 +1908,32 @@ function showPrizePopup(){
       <b>adidas FIFA Dünya Kupası 26</b> futbol topu hediye! ⚽</p>
     <a class="prize-link" href="${url}" target="_blank" rel="noopener" style="color:${th.a};border-bottom-color:${th.a}">🎁 Ödülü gör →</a>
     ${listBlock}
-    <button class="pop-btn" id="popupClose2"
-      style="background:linear-gradient(135deg,${th.a},${th.b});color:#151007;box-shadow:0 8px 22px -8px ${th.g}">Tamam, hallediyorum 👍</button>`);
+    <button class="pop-btn cd-wait" id="popupClose2" disabled
+      style="--cda:${th.a};--cdb:${th.b}">Okumak için bekle · 5</button>`);
+  startPrizeCountdown(5);
   // Linki tarayıcının kendisi açsın (referrer doğal gitsin; adidas bot-koruması 403 vermesin).
-  // Sadece tıklamanın arka plana sıçrayıp pop-up'ı kapatmasını engelliyoruz; gezinmeye dokunmuyoruz.
   document.querySelectorAll(".prize-ball, .prize-link").forEach(a=>{
     a.addEventListener("click",e=>{ e.stopPropagation(); });
   });
+}
+// 5€ pop-up kapatma geri sayımı: bitene kadar kilitli, sonra buton aktifleşir (görsel geçişle)
+function startPrizeCountdown(sec){
+  window._popupLocked=true;
+  let cd=sec;
+  const timer=setInterval(()=>{
+    const b=$("#popupClose2"), pop=$("#popup");
+    if(!b || !pop || !pop.classList.contains("show")){ clearInterval(timer); window._popupLocked=false; return; }
+    cd--;
+    if(cd>0){ b.textContent=`Okumak için bekle · ${cd}`; }
+    else{
+      clearInterval(timer);
+      window._popupLocked=false;
+      b.disabled=false;
+      b.classList.remove("cd-wait"); b.classList.add("cd-ready");
+      b.textContent="Tamam 👍";
+      const x=$("#popupClose"); if(x) x.style.display="";
+    }
+  },1000);
 }
 // Ödeyenlere tek seferlik teşekkür pop-up'ı
 function prizeThanksSeen(uid){ try{ return localStorage.getItem("wcPrizeLeft_"+uid)==="1"; }catch(e){ return false; } }
