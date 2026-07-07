@@ -409,7 +409,9 @@ nav.tabs button:hover{color:var(--ink)}
   background:linear-gradient(180deg,#12241a,#0c1b13);border:1px solid var(--line2);border-radius:16px;
   padding:12px 12px 11px;box-shadow:0 16px 42px -12px rgba(0,0,0,.65);text-align:center}
 @media(max-width:900px){#pledgeWidget{display:none!important}}
-.pw-ball{position:relative;width:112px;height:112px;margin:0 auto 8px}
+.pw-ball{position:relative;display:block;width:112px;height:112px;margin:0 auto 8px;text-decoration:none;
+  transition:transform .15s}
+.pw-ball:hover{transform:scale(1.04)}
 .pw-ball img{width:100%;height:100%;object-fit:contain;display:block}
 .pw-pie{position:absolute;inset:0;width:100%;height:100%;filter:drop-shadow(0 2px 4px rgba(0,0,0,.3))}
 .pw-count{font-size:11.5px;color:var(--muted);font-weight:700;line-height:1.4}
@@ -1864,7 +1866,7 @@ function showOddsTable(mid){
 }
 function showPrizePopup(){
   const ball="https://assets.adidas.com/images/w_500,f_auto,q_auto/3f6dcc811fbe49a38397134fbfc5c3f9_9366/Trionda_FIFA_Fussball-Weltmeisterschaft_26tm_Trainingsball_Weiss_JD8032_01_00_standard.jpg";
-  const url="https://www.adidas.de/trionda-fifa-fussball-weltmeisterschaft-26-trainingsball/JD8032.html";
+  const url="https://www.intersport.de/p/adidas-ball-fifa-world-cup-26-trionda-league-p2244964?articleId=a203246199";
   const paid=paidSet();
   const players=profiles.filter(p=>!isHiddenUser(p.username)).sort((a,b)=>a.username.localeCompare(b.username,"tr"));
   const payers=players.filter(p=>paid.has(p.id));
@@ -2709,10 +2711,10 @@ function renderPledgeWidget(){
     slices+=`<path d="${wedge(a1,a2)}" fill="${filled?'rgba(126,224,163,.45)':'rgba(10,20,14,.05)'}" stroke="rgba(255,255,255,.6)" stroke-width="1"/>`;
   }
   el.innerHTML=`
-    <div class="pw-ball">
+    <a class="pw-ball" href="https://www.intersport.de/p/adidas-ball-fifa-world-cup-26-trionda-league-p2244964?articleId=a203246199" target="_blank" rel="noopener" title="Ödülü gör">
       <img src="${ball}" alt="" loading="lazy">
       <svg viewBox="0 0 ${size} ${size}" class="pw-pie" xmlns="http://www.w3.org/2000/svg">${slices}</svg>
-    </div>
+    </a>
     <div class="pw-count">Ödüle katkıda bulunan kişi sayısı<br><b>${paid}/${total}</b></div>
     ${debtors.length
       ? `<div class="pw-deb"><span>Eksik:</span> ${debtors.map(esc).join(", ")}</div>`
