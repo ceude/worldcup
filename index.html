@@ -1550,7 +1550,7 @@ async function trySave(mid,box){
 }
 // Ödeme mesajı açıkken, şampiyon seçmiş ve henüz katkı sağlamamış kişiye pop-up'ı (başka pop-up açık değilse) göster
 function maybeNudgePrize(){
-  if(!me || me.champion==null) return;
+  if(!me || me.is_admin || me.champion==null) return;
   if(appConfig.prize_on!=="1") return;
   if(paidSet().has(session.user.id)) return;
   const pop=$("#popup");
@@ -1944,10 +1944,10 @@ function paidSet(){
 function maybeShowOpeningPopup(){
   // 1) En önce: Şampiyon tahmini (seçmemişse ve süre dolmadıysa)
   if(me && !me.champion && championOpen()){ showChampionPicker(); return; }
-  // 2) İkinci öncelik: Ödül havuzu mesajı AÇIK ise, şampiyon seçmiş ama henüz ödememişe göster
-  if(me && me.champion && appConfig.prize_on==="1" && !paidSet().has(session.user.id)){ showPrizePopup(); return; }
-  // Ödeyenlere tek seferlik teşekkür (mesaj açıkken, daha önce görmediyse)
-  if(me && appConfig.prize_on==="1" && paidSet().has(session.user.id) && !prizeThanksSeen(session.user.id)){
+  // 2) İkinci öncelik: Ödül havuzu mesajı AÇIK ise, şampiyon seçmiş ama henüz ödememişe göster (admin hariç)
+  if(me && !me.is_admin && me.champion && appConfig.prize_on==="1" && !paidSet().has(session.user.id)){ showPrizePopup(); return; }
+  // Ödeyenlere tek seferlik teşekkür (mesaj açıkken, daha önce görmediyse; admin hariç)
+  if(me && !me.is_admin && appConfig.prize_on==="1" && paidSet().has(session.user.id) && !prizeThanksSeen(session.user.id)){
     showPrizeThanks(); markPrizeThanksSeen(session.user.id); return;
   }
   // Sonra: turnuvada desteklediği takımı seçmemişse takım seçimi
@@ -2358,7 +2358,8 @@ function renderPrizeAdmin(){
   const el=$("#prizeAdmin"); if(!el) return;
   const on = appConfig.prize_on==="1";
   const paid=paidSet();
-  const players=profiles.filter(p=>!isHiddenUser(p.username))
+  // Yönetimde admin dahil herkes eklenebilsin (admin'e pop-up çıkmaz ama listeye eklenebilir)
+  const players=profiles.slice()
     .sort((a,b)=>a.username.localeCompare(b.username,"tr"));
   const notPaid=players.filter(p=>!paid.has(p.id));
   const addOpts=`<option value="">— Ödeyeni seç —</option>`+
