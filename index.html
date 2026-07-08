@@ -1721,26 +1721,28 @@ function rankRows(rows){
 }
 let lbHasLive=false;
 function buildLeaderboard(){
-  const todayK=berlinCalKey(Date.now());
   const players=profiles.filter(p=>!isHiddenUser(p.username));
   const bm={}; predsAll.forEach(p=>{ (bm[p.user_id]||(bm[p.user_id]={}))[p.match_id]=p; });
   const fin=matches.filter(m=>(m.finished||isInPlay(m)) && new Date(m.kickoff)>=CUTOFF);
   lbHasLive = matches.some(m=>isInPlay(m) && new Date(m.kickoff)>=CUTOFF);
-  function tot(uid,excludeToday){
-    let pts=0,exact=0,outc=0,today=0,live=0; const u=bm[uid]||{};
+  // Son biten (tamamlanmış) maç — "son maç +X" ve ok bunun üstünden
+  const lastFinished = matches.filter(m=>m.finished && new Date(m.kickoff)>=CUTOFF)
+    .slice().sort((a,b)=> new Date(b.kickoff)-new Date(a.kickoff))[0] || null;
+  function tot(uid,excludeRecent){
+    let pts=0,exact=0,outc=0,last=0,live=0; const u=bm[uid]||{};
     fin.forEach(m=>{
       const g=grade(u[m.id]||null,m); if(!g) return;
-      const isT=berlinCalKey(m.kickoff)===todayK, ip=isInPlay(m);
-      if(isT) today+=g.pts;
+      const isLast = lastFinished && m.id===lastFinished.id, ip=isInPlay(m);
+      if(isLast) last+=g.pts;
       if(ip) live+=g.pts;
-      if(excludeToday && isT) return;
+      if(excludeRecent && (isLast || ip)) return; // "son maç öncesi" = son biten maç + canlı hariç
       pts+=g.pts; if(g.type==="exact"){exact++;outc++;} else if(g.type==="outc"){outc++;}
     });
-    return {pts,exact,outc,today,live};
+    return {pts,exact,outc,last,live};
   }
   let rows=players.map(p=>{ const t=tot(p.id,false);
     return {id:p.id, username:p.username, is_admin:p.is_admin, fav:p.fav_team, champion:p.champion, pts:t.pts, exact:t.exact, outc:t.outc,
-            todayPts:t.today, livePts:t.live, picks:(predCounts&&predCounts[p.id]!=null)?predCounts[p.id]:0 }; });
+            lastPts:t.last, livePts:t.live, picks:(predCounts&&predCounts[p.id]!=null)?predCounts[p.id]:0 }; });
   // Şampiyon bonusu: kazanan ilan edildiyse, doğru tahmin edenlere ekle
   const champWinner = appConfig.champion_winner;
   if(champWinner){
@@ -1748,7 +1750,7 @@ function buildLeaderboard(){
   }
   rows.sort((a,b)=> b.pts-a.pts || b.exact-a.exact || a.username.localeCompare(b.username,"tr"));
   rankRows(rows);
-  // ▲▼ için bugünü (canlı dahil) hariç tutan önceki sıralama
+  // ▲▼ için son maç (ve canlı) öncesi sıralama
   let prev=players.map(p=>{ const t=tot(p.id,true); return {id:p.id,pts:t.pts,exact:t.exact}; });
   prev.sort((a,b)=> b.pts-a.pts || b.exact-a.exact);
   rankRows(prev); const pr={}; prev.forEach(r=>pr[r.id]=r.rank);
@@ -1762,7 +1764,7 @@ function lbRowHTML(r){
   const arrow = r.delta>0?`<span class="up">▲</span> `:r.delta<0?`<span class="down">▼</span> `:"";
   let st2="";
   if(r.livePts>0) st2=`<div class="st2 live"><span class="livedot"></span>${arrow}canlı +${r.livePts} (geçici)</div>`;
-  else if(r.todayPts>0) st2=`<div class="st2">${arrow}bugün +${r.todayPts}</div>`;
+  else if(r.lastPts>0 || r.delta!==0) st2=`<div class="st2">${arrow}son maç${r.lastPts>0?` +${r.lastPts}`:""}</div>`;
   const champTag = r.champBonus ? `<span class="champ-badge" title="Şampiyon tahmini tuttu">🏆 +${r.champBonus}</span>` : "";
   return `<div class="lbrow ${meCls}" data-uid="${r.id}">
     <div class="rank ${gcls}">${medal}</div>
