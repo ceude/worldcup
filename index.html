@@ -1050,7 +1050,7 @@ const SIDE_BETS = [
   {key:"corner", q:"Kaç korner olur?",            opts:[{v:"under",label:"9.5 Alt",pts:10},{v:"over",label:"9.5 Üst",pts:10}]},
   {key:"red",    q:"Kırmızı kart olur mu?",       opts:[{v:"yes",label:"Evet",pts:20},{v:"no",label:"Hayır",pts:10}]},
   {key:"pen",    q:"Penaltı olur mu?",            opts:[{v:"yes",label:"Evet",pts:20},{v:"no",label:"Hayır",pts:10}]},
-  {key:"var",    q:"Hakem VAR'a kaç kez gider?",  opts:[{v:"under",label:"0.5 Alt",pts:10},{v:"over",label:"0.5 Üst",pts:10}]}
+  {key:"var",    q:"Hakem VAR Monitörü'ne gider mi?", opts:[{v:"yes",label:"Evet",pts:10},{v:"no",label:"Hayır",pts:10}]}
 ];
 const SIDE_KEYS = SIDE_BETS.map(b=>b.key);
 const sideOpt = (key,v)=> (SIDE_BETS.find(b=>b.key===key)||{opts:[]}).opts.find(o=>o.v===v);
