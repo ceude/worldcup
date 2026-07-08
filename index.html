@@ -1113,7 +1113,7 @@ function avatarInner(username, favTeam){
    ==================================================================== */
 let sb=null, session=null, me=null;
 let matches=[], predsMine={}, predsAll=[], profiles=[], predCounts={}, appConfig={};
-let curStage="r16", curGroup="ALL", adminStage="group";
+let curStage="qf", curGroup="ALL", adminStage="group";
 let sortMode="date"; // "date" = tarihe göre (varsayılan), "group" = gruba göre
 let showPast=false; // false = sadece 24 Haziran ve sonrası; true = öncesi de görünür
 let showOpenOnly=false; // Son 32 / Son 16: sadece kilitli olmayan (tahmine açık) maçlar
@@ -1496,7 +1496,7 @@ function sideBetsPanelHTML(){
   const resolved = SIDE_KEYS.some(k=>res[k]); // sonuç girilmiş mi
   let lockNote="";
   if(!bothTeams) lockNote=`<div class="sb-lock">🔒 Final eşleşmesi belli olunca açılacak.</div>`;
-  else if(!open && !resolved) lockNote=`<div class="sb-lock">🔒 Maç başladı, yan bahisler kilitlendi.</div>`;
+  else if(!open && !resolved) lockNote=`<div class="sb-lock">🔒 Maç başladı, yan tahminler kilitlendi.</div>`;
 
   const rows = SIDE_BETS.map(b=>{
     const opts=b.opts.map(o=>{
@@ -1514,7 +1514,7 @@ function sideBetsPanelHTML(){
   const myBonus = resolved ? `<div class="sb-mybonus">Bu bahislerden puanın: <b>+${sideBonus(my)}</b></div>` : "";
 
   return `<div class="sb-panel">
-    <div class="sb-head">🎲 Final Yan Bahisleri</div>
+    <div class="sb-head">🎲 Final Yan Tahminleri</div>
     <div class="sb-note">Aşağıdaki tüm küçük oyunlar <b>90 dakikalık maç süresi</b> içindeki adetlere göredir. Uzatmalar ve penaltı aşamaları sayılmaz.</div>
     ${lockNote}
     ${rows}
@@ -1938,7 +1938,7 @@ function openProfile(uid, opts){
       const pt = correct ? `+${o?o.pts:0}` : (res[b.key]?"0":`+${o?o.pts:0}?`);
       return `<div class="sbp-row ${cls}"><span>${b.q}</span><b>${o?esc(o.label):"—"} <i>${pt}</i></b></div>`;
     }).join("");
-    if(rows) sideBlock=`<div class="prof-side"><div class="ps-lab">🎲 Final Yan Bahisleri${sideBonus(bets)?` · +${sideBonus(bets)} puan`:""}</div>${rows}</div>`;
+    if(rows) sideBlock=`<div class="prof-side"><div class="ps-lab">🎲 Final Yan Tahminleri${sideBonus(bets)?` · +${sideBonus(bets)} puan`:""}</div>${rows}</div>`;
   }
 
   $("#modalCard").innerHTML=`
@@ -2030,7 +2030,7 @@ function showSideBetsAll(){
   $("#modalCard").innerHTML=`
     <div class="matchpred-head">
       <button class="x" id="mCloseSB">✕</button>
-      <div class="bigres" style="font-size:16px"><div class="t">🎲 Final Yan Bahisleri</div></div>
+      <div class="bigres" style="font-size:16px"><div class="t">🎲 Final Yan Tahminleri</div></div>
       <div class="mph-sub">${esc(trName(m.team_home))} – ${esc(trName(m.team_away))}</div>
     </div>
     ${cats}`;
@@ -2619,7 +2619,7 @@ function renderSideBetAdmin(){
     return `<div class="sba-row"><div class="sba-q">${b.q}</div><div class="sba-opts">${opts}</div></div>`;
   }).join("");
   el.innerHTML=`
-    <h3 style="margin:22px 0 6px">🎲 Final Yan Bahisleri — Sonuçlar</h3>
+    <h3 style="margin:22px 0 6px">🎲 Final Yan Tahminleri — Sonuçlar</h3>
     <p style="color:var(--muted);font-size:13px;max-width:640px;margin:0 0 8px">
       Final maçı bitince gerçek sonuçları işaretle (90 dk içindeki adetlere göre). Puanlar otomatik eklenir.</p>
     ${rows}
