@@ -410,6 +410,45 @@ nav.tabs button:hover{color:var(--ink)}
 .wc-legend{font-size:11px;color:var(--muted);margin-top:10px;line-height:1.6;
   background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px 12px}
 .wc-legend b{color:var(--ink)}
+/* Final yan bahisleri */
+.sb-panel{background:linear-gradient(180deg,#12241a,#0d1b13);border:1px solid var(--line);border-radius:14px;
+  padding:14px 15px;margin-top:14px}
+.sb-head{font-weight:900;font-size:16px;color:var(--gold);margin-bottom:6px}
+.sb-note{font-size:12px;color:#dceae0;background:#13261c;border:1px solid var(--line2);border-radius:9px;
+  padding:8px 10px;margin-bottom:10px;line-height:1.45}
+.sb-note b{color:var(--gold2)}
+.sb-lock{font-size:12.5px;font-weight:700;color:#ffcf9a;background:#2a1d10;border:1px solid rgba(255,140,66,.3);
+  border-radius:9px;padding:8px 10px;margin-bottom:10px}
+.sb-row{margin-bottom:11px}
+.sb-q{font-weight:800;font-size:13.5px;color:#fff;margin-bottom:6px}
+.sb-opts{display:flex;gap:8px}
+.sb-opt{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--panel);
+  border:1px solid var(--line2);border-radius:11px;padding:10px;cursor:pointer;color:var(--ink);font-weight:800;font-size:14px}
+.sb-opt b{color:var(--gold2);font-size:12px}
+.sb-opt:hover:not(:disabled){border-color:var(--gold)}
+.sb-opt.sel{background:#15301f;border-color:var(--gold);color:#fff}
+.sb-opt.correct{background:var(--okdim);border-color:rgba(43,213,117,.6)}
+.sb-opt.wrong{background:#2a1416;border-color:rgba(255,90,90,.4);opacity:.85}
+.sb-opt:disabled{cursor:default;opacity:.85}
+.sb-mybonus{font-size:13px;font-weight:800;color:var(--gold2);margin:6px 0 2px}
+/* yan bahis: profil bölümü */
+.prof-side{margin:14px 18px 0;padding:11px 14px;background:var(--panel);border:1px solid var(--line);border-radius:13px}
+.prof-side .ps-lab{font-size:12px;color:var(--gold2);font-weight:800;margin-bottom:7px}
+.sbp-row{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:4px 0;color:var(--ink)}
+.sbp-row b{white-space:nowrap}
+.sbp-row i{font-style:normal;font-weight:800}
+.sbp-ok i{color:var(--ok)} .sbp-no i{color:var(--muted)} .sbp-pending i{color:var(--gold2)}
+/* yan bahis: herkesin tahmini kategori */
+.sb-cat{margin:12px 0}
+.sb-cat-h{font-weight:800;font-size:14px;color:#fff;margin:0 0 6px;padding:0 2px}
+.sb-cat-res{font-size:11px;color:var(--gold2);font-weight:800;margin-left:6px}
+/* yan bahis admin */
+.sba-row{margin-bottom:10px}
+.sba-q{font-weight:700;font-size:13px;color:var(--ink);margin-bottom:5px}
+.sba-opts{display:flex;gap:7px}
+.sba-opt{flex:1;background:#13241a;border:1px solid var(--line2);border-radius:9px;padding:8px;cursor:pointer;
+  color:var(--ink);font-weight:800;font-size:13px}
+.sba-opt.sel{background:var(--gold);color:#151007;border-color:var(--gold)}
 /* 5€ pop-up kapatma geri sayımı */
 .pop-btn.cd-wait{background:#2a2f2b !important;color:#8fa298 !important;cursor:not-allowed;
   box-shadow:none !important;opacity:.9;position:relative}
@@ -866,6 +905,7 @@ nav.tabs button:hover{color:var(--ink)}
         <div id="adminList"></div>
         <div class="champ-admin" id="champAdmin"></div>
         <div class="prize-admin" id="prizeAdmin"></div>
+        <div class="sidebet-admin" id="sideBetAdmin"></div>
       </section>
     </main>
 
@@ -994,6 +1034,56 @@ function decChampion(code){
     const t=new TextDecoder().decode(bytes);
     return CHAMPION_POINTS[t]!=null ? t : null;
   }catch(e){ return null; }
+}
+/* ===== FİNAL YAN BAHİSLERİ ===== */
+const SIDE_BETS = [
+  {key:"corner", q:"Kaç korner olur?",            opts:[{v:"under",label:"9.5 Alt",pts:10},{v:"over",label:"9.5 Üst",pts:10}]},
+  {key:"red",    q:"Kırmızı kart olur mu?",       opts:[{v:"yes",label:"Evet",pts:20},{v:"no",label:"Hayır",pts:10}]},
+  {key:"pen",    q:"Penaltı olur mu?",            opts:[{v:"yes",label:"Evet",pts:20},{v:"no",label:"Hayır",pts:10}]},
+  {key:"var",    q:"Hakem VAR'a kaç kez gider?",  opts:[{v:"under",label:"0.5 Alt",pts:10},{v:"over",label:"0.5 Üst",pts:10}]}
+];
+const SIDE_KEYS = SIDE_BETS.map(b=>b.key);
+const sideOpt = (key,v)=> (SIDE_BETS.find(b=>b.key===key)||{opts:[]}).opts.find(o=>o.v===v);
+// Kullanıcı seçimini DB'de okunamaz tut (hafif kodlama)
+function encSide(obj){
+  if(!obj) return null;
+  const json=JSON.stringify(obj);
+  const bytes=new TextEncoder().encode(json); let bin="";
+  for(let i=0;i<bytes.length;i++) bin+=String.fromCharCode(bytes[i]^CHAMP_KEY.charCodeAt(i%CHAMP_KEY.length));
+  return "s1:"+btoa(bin);
+}
+function decSide(code){
+  if(!code) return null;
+  try{
+    if(code.indexOf("s1:")===0){
+      const bin=atob(code.slice(3)); const bytes=new Uint8Array(bin.length);
+      for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i)^CHAMP_KEY.charCodeAt(i%CHAMP_KEY.length);
+      code=new TextDecoder().decode(bytes);
+    }
+    const o=(typeof code==="string")?JSON.parse(code):code;
+    return (o && typeof o==="object")?o:null;
+  }catch(e){ return null; }
+}
+// Yönetimin girdiği sonuçlar (config.final_side_results JSON)
+function sideResults(){
+  try{ const o=JSON.parse(appConfig.final_side_results||"{}"); return o||{}; }catch(e){ return {}; }
+}
+// Bir kullanıcının yan bahis bonusu (sonuç girilmişse)
+function sideBonus(bets){
+  if(!bets) return 0;
+  const res=sideResults(); let pts=0;
+  SIDE_BETS.forEach(b=>{
+    if(res[b.key] && bets[b.key] && res[b.key]===bets[b.key]){
+      const o=sideOpt(b.key, bets[b.key]); if(o) pts+=o.pts;
+    }
+  });
+  return pts;
+}
+// Finalin yan bahisleri açık mı (iki takım belli + maç başlamadı)
+function finalMatch(){ return matches.find(m=>m.stage==="final"); }
+function sideBetsOpen(){
+  const m=finalMatch();
+  return !!(m && m.team_home && m.team_away && new Date(m.kickoff) > new Date());
 }
 // Açıklama cümlesi için doğal tur ifadesi
 const STAGE_PHRASE = {
@@ -1139,10 +1229,15 @@ function userTotals(uid){
     if(g.type==="exact"){exact++;outc++;}
     else if(g.type==="outc"){outc++;}
   });
+  // Final yan bahisleri bonusu (sonuç girildiyse)
+  const prof = profiles.find(p=>p.id===uid);
+  const myBets = (uid===session.user.id && me) ? me.final_side_bets : (prof?prof.final_side_bets:null);
+  const sbPts = sideBonus(myBets);
+  pts += sbPts;
   // Tahmin adedi: tüm kullanıcılar için sunucudan (RPC) gelen gerçek sayı.
   // RPC yoksa (eski kurulum) görünür tahminlerden say.
   const picks = (predCounts && predCounts[uid]!=null) ? predCounts[uid] : picksLocal;
-  return {pts,exact,outc,graded,picks};
+  return {pts,exact,outc,graded,picks,sbPts};
 }
 
 /* ====================================================================
@@ -1205,7 +1300,7 @@ async function loadProfile(){
     const r=await sb.from("profiles").select("*").eq("id",session.user.id).maybeSingle();
     me=r.data;
   }
-  if(me) me.champion = decChampion(me.champion); // DB'de kodlu → bellekte düz takım adı
+  if(me){ me.champion = decChampion(me.champion); me.final_side_bets = decSide(me.final_side_bets); } // DB kodlu → bellekte düz
 }
 async function loadAll(){
   const [mq,pq,allq,cntq]=await Promise.all([
@@ -1215,7 +1310,8 @@ async function loadAll(){
     sb.rpc("prediction_counts")
   ]);
   // profiles: champion kolonu henüz yoksa app çökmesin diye yedekli
-  let profq = await sb.from("profiles").select("id,username,is_admin,fav_team,champion");
+  let profq = await sb.from("profiles").select("id,username,is_admin,fav_team,champion,final_side_bets");
+  if(profq.error) profq = await sb.from("profiles").select("id,username,is_admin,fav_team,champion");
   if(profq.error) profq = await sb.from("profiles").select("id,username,is_admin,fav_team");
   // config: tablo henüz yoksa sessizce boş
   let cfgq = await sb.from("config").select("key,value");
@@ -1223,7 +1319,7 @@ async function loadAll(){
   predsMine={}; (pq.data||[]).forEach(p=>predsMine[p.match_id]=p);
   predsAll = allq.data||[];
   profiles = profq.data||[];
-  profiles.forEach(p=>{ p.champion = decChampion(p.champion); }); // kodlu → düz
+  profiles.forEach(p=>{ p.champion = decChampion(p.champion); p.final_side_bets = decSide(p.final_side_bets); }); // kodlu → düz
   predCounts={}; if(!cntq.error) (cntq.data||[]).forEach(r=>predCounts[r.user_id]=Number(r.cnt));
   appConfig={}; if(!cfgq.error) (cfgq.data||[]).forEach(r=>appConfig[r.key]=r.value);
 }
@@ -1386,6 +1482,51 @@ function renderMatches(){
   });
   list.innerHTML=html;
   bindScoreInputs(list);
+  if(curStage==="final"){ list.insertAdjacentHTML("beforeend", sideBetsPanelHTML()); bindSideBets(list); }
+}
+// Final yan bahisleri paneli
+function sideBetsPanelHTML(){
+  const m=finalMatch(); if(!m) return "";
+  const bothTeams = m.team_home && m.team_away;
+  const open = sideBetsOpen();
+  const started = bothTeams && new Date(m.kickoff) <= new Date();
+  const res = sideResults();
+  const my = (me&&me.final_side_bets)||{};
+  const resolved = SIDE_KEYS.some(k=>res[k]); // sonuç girilmiş mi
+  let lockNote="";
+  if(!bothTeams) lockNote=`<div class="sb-lock">🔒 Final eşleşmesi belli olunca açılacak.</div>`;
+  else if(!open && !resolved) lockNote=`<div class="sb-lock">🔒 Maç başladı, yan bahisler kilitlendi.</div>`;
+
+  const rows = SIDE_BETS.map(b=>{
+    const opts=b.opts.map(o=>{
+      const sel = my[b.key]===o.v;
+      const isRes = resolved && res[b.key]===o.v;
+      const cls = ["sb-opt", sel?"sel":"", isRes?"correct":"", (resolved&&sel&&!isRes)?"wrong":""].filter(Boolean).join(" ");
+      const dis = open ? "" : "disabled";
+      return `<button class="${cls}" data-sb="${b.key}" data-val="${o.v}" ${dis}>
+        <span>${o.label}</span><b>+${o.pts}</b>${isRes?' ✓':''}</button>`;
+    }).join("");
+    return `<div class="sb-row"><div class="sb-q">${b.q}</div><div class="sb-opts">${opts}</div></div>`;
+  }).join("");
+
+  const seeAll = started ? `<button class="seeall" data-sideall="1">👁 Herkesin yan tahminlerini gör</button>` : "";
+  const myBonus = resolved ? `<div class="sb-mybonus">Bu bahislerden puanın: <b>+${sideBonus(my)}</b></div>` : "";
+
+  return `<div class="sb-panel">
+    <div class="sb-head">🎲 Final Yan Bahisleri</div>
+    <div class="sb-note">Aşağıdaki tüm küçük oyunlar <b>90 dakikalık maç süresi</b> içindeki adetlere göredir. Uzatmalar ve penaltı aşamaları sayılmaz.</div>
+    ${lockNote}
+    ${rows}
+    ${myBonus}
+    ${seeAll}
+  </div>`;
+}
+function bindSideBets(scope){
+  scope.querySelectorAll("[data-sb]").forEach(btn=>{
+    btn.onclick=()=>{ if(btn.disabled) return; saveSideBet(btn.dataset.sb, btn.dataset.val); };
+  });
+  const sa=scope.querySelector("[data-sideall]");
+  if(sa) sa.onclick=()=>showSideBetsAll();
 }
 
 /* ====================================================================
@@ -1781,6 +1922,24 @@ function openProfile(uid, opts){
     }
   }
 
+  // Final yan bahisleri — maç başladıktan/sonuç girildikten sonra herkese görünür
+  let sideBlock="";
+  const fm=finalMatch();
+  const started = fm && fm.team_home && fm.team_away && new Date(fm.kickoff) <= new Date();
+  const bets = prof.final_side_bets;
+  if(started && bets){
+    const res=sideResults();
+    const rows=SIDE_BETS.map(b=>{
+      const pick=bets[b.key]; if(!pick) return "";
+      const o=sideOpt(b.key,pick);
+      const correct = res[b.key] && res[b.key]===pick;
+      const cls = res[b.key] ? (correct?"sbp-ok":"sbp-no") : "sbp-pending";
+      const pt = correct ? `+${o?o.pts:0}` : (res[b.key]?"0":`+${o?o.pts:0}?`);
+      return `<div class="sbp-row ${cls}"><span>${b.q}</span><b>${o?esc(o.label):"—"} <i>${pt}</i></b></div>`;
+    }).join("");
+    if(rows) sideBlock=`<div class="prof-side"><div class="ps-lab">🎲 Final Yan Bahisleri${sideBonus(bets)?` · +${sideBonus(bets)} puan`:""}</div>${rows}</div>`;
+  }
+
   $("#modalCard").innerHTML=`
     <div class="mh"><div class="av${prof.fav_team?' flag':''}">${avatarInner(prof.username, prof.fav_team)}</div>
       <div><h3>${esc(prof.username)}</h3>
@@ -1788,6 +1947,7 @@ function openProfile(uid, opts){
       <button class="x" id="mClose">✕</button></div>
     ${favBlock}
     ${champBlock}
+    ${sideBlock}
     <div class="legend">
       <span><i class="lg-e"></i> Skoru tam bildi (+100)</span>
       <span><i class="lg-o"></i> Sonucu bildi (+30)</span>
@@ -1843,8 +2003,39 @@ function openMatchPreds(mid){
   $("#modal").classList.add("show");
   $("#mCloseAP").onclick=closeModal;
 }
-
-/* ===== Açılış pop-up'ları ===== */
+// Final yan bahisleri: herkesin tahmini, kategori kategori
+function showSideBetsAll(){
+  const m=finalMatch(); if(!m) return;
+  const res=sideResults();
+  const players=profiles.filter(p=>!isHiddenUser(p.username));
+  const cats=SIDE_BETS.map(b=>{
+    const resV=res[b.key];
+    const resLabel = resV ? (sideOpt(b.key,resV)||{}).label : null;
+    const rows=players.map(p=>{
+      const pick=(p.final_side_bets||{})[b.key];
+      const o=pick?sideOpt(b.key,pick):null;
+      const correct = resV && pick===resV;
+      const cls = resV ? (correct?"mp exact":"mp bad") : "mp none";
+      const gained = correct ? "+"+(o?o.pts:0) : (resV?"0":(o?"+"+o.pts:""));
+      return `<div class="${cls}"><div class="mpav">${esc(initials(p.username))}</div>
+        <div class="mpn">${esc(p.username)}</div>
+        <div class="mpp">${o?esc(o.label):"—"}</div>
+        <div class="mppt">${gained}</div></div>`;
+    }).join("");
+    return `<div class="sb-cat">
+      <div class="sb-cat-h">${b.q}${resLabel?` <span class="sb-cat-res">Sonuç: ${esc(resLabel)}</span>`:""}</div>
+      <div class="mplist">${rows}</div></div>`;
+  }).join("");
+  $("#modalCard").innerHTML=`
+    <div class="matchpred-head">
+      <button class="x" id="mCloseSB">✕</button>
+      <div class="bigres" style="font-size:16px"><div class="t">🎲 Final Yan Bahisleri</div></div>
+      <div class="mph-sub">${esc(trName(m.team_home))} – ${esc(trName(m.team_away))}</div>
+    </div>
+    ${cats}`;
+  $("#modal").classList.add("show");
+  $("#mCloseSB").onclick=closeModal;
+}
 function closePopup(){ if(window._popupLocked) return; const p=$("#popup"); if(p) p.classList.remove("show"); }
 function showPopup(html){
   $("#popupCard").innerHTML=html;
@@ -2150,7 +2341,19 @@ async function saveChampion(team){
     setTimeout(()=>showChampionPicker(), 250); // kilitli onay ekranı
   }catch(e){ alert("Şampiyon kaydedilemedi: "+(e.message||e.error_description||e)); }
 }
-// Turnuvada desteklenen takımı seçme pop-up'ı (avatar = yuvarlak bayrak)
+// Final yan bahisleri: bir seçimi güncelle (kilit açıkken)
+async function saveSideBet(key, val){
+  if(!sideBetsOpen()){ band("Yan bahisler kilitli","Final",true); return; }
+  const cur = (me&&me.final_side_bets) ? {...me.final_side_bets} : {};
+  cur[key]=val;
+  try{
+    const {error}=await sb.from("profiles").update({final_side_bets:encSide(cur)}).eq("id",session.user.id);
+    if(error) throw error;
+    me.final_side_bets=cur;
+    const mine=profiles.find(p=>p.id===session.user.id); if(mine) mine.final_side_bets=cur;
+    renderMatches();
+  }catch(e){ band("Kaydedilemedi: "+((e&&e.message)||e),"Final",true); }
+}
 function showTeamPicker(firstTime){
   const cur=me&&me.fav_team;
   const grid=ALL_TEAMS.map(t=>`
@@ -2402,6 +2605,36 @@ function renderPrizeAdmin(){
   el.querySelectorAll("[data-rm]").forEach(b=>b.onclick=async()=>{
     const s=paidSet(); s.delete(b.dataset.rm); await savePaid([...s]);
   });
+  renderSideBetAdmin();
+}
+// Yönetim: Final yan bahis sonuçlarını gir
+function renderSideBetAdmin(){
+  const el=$("#sideBetAdmin"); if(!el) return;
+  const m=finalMatch();
+  if(!m){ el.innerHTML=""; return; }
+  const res=sideResults();
+  const rows=SIDE_BETS.map(b=>{
+    const opts=b.opts.map(o=>`<button class="sba-opt ${res[b.key]===o.v?'sel':''}" data-sbres="${b.key}" data-val="${o.v}">${o.label}</button>`).join("");
+    return `<div class="sba-row"><div class="sba-q">${b.q}</div><div class="sba-opts">${opts}</div></div>`;
+  }).join("");
+  el.innerHTML=`
+    <h3 style="margin:22px 0 6px">🎲 Final Yan Bahisleri — Sonuçlar</h3>
+    <p style="color:var(--muted);font-size:13px;max-width:640px;margin:0 0 8px">
+      Final maçı bitince gerçek sonuçları işaretle (90 dk içindeki adetlere göre). Puanlar otomatik eklenir.</p>
+    ${rows}
+    <div style="margin-top:8px"><button class="btn ghost sm" id="sbaClear">Sonuçları temizle</button></div>`;
+  el.querySelectorAll("[data-sbres]").forEach(btn=>btn.onclick=()=>saveSideResult(btn.dataset.sbres, btn.dataset.val));
+  $("#sbaClear").onclick=()=>saveSideResult(null,null,true);
+}
+async function saveSideResult(key,val,clear){
+  const res = clear ? {} : {...sideResults(), [key]:val};
+  try{
+    const { error } = await sb.from("config").upsert({key:"final_side_results", value:JSON.stringify(res)});
+    if(error) throw error;
+    appConfig.final_side_results = JSON.stringify(res);
+    band(clear?"Yan bahis sonuçları temizlendi":"Sonuç kaydedildi","Yönetim");
+    renderSideBetAdmin(); renderAll();
+  }catch(e){ band("Kaydedilemedi: "+((e&&e.message)||e),"Yönetim",true); }
 }
 async function savePaid(ids){
   try{
