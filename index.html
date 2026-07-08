@@ -478,9 +478,10 @@ nav.tabs button:hover{color:var(--ink)}
   background:linear-gradient(180deg,#12241a,#0c1b13);border:1px solid var(--line2);border-radius:16px;
   padding:12px 12px 11px;box-shadow:0 16px 42px -12px rgba(0,0,0,.65);text-align:center}
 @media(max-width:900px){#pledgeWidget{display:none!important}}
-.pw-ball{position:relative;display:block;width:112px;height:112px;margin:0 auto 8px;text-decoration:none;
-  transition:transform .15s}
-.pw-ball:hover{transform:scale(1.04)}
+.pw-ball{position:relative;display:block;width:100%;margin:0 auto 9px;text-decoration:none;
+  transition:transform .15s;border-radius:10px;overflow:hidden}
+.pw-ball:hover{transform:scale(1.03)}
+.pw-ball img{width:100%;height:auto;display:block}
 .pw-cta{position:absolute;left:50%;bottom:6px;transform:translateX(-50%);white-space:nowrap;
   background:linear-gradient(135deg,var(--gold),var(--gold2));color:#1a1206;font-weight:900;font-size:10.5px;
   letter-spacing:.3px;padding:4px 11px;border-radius:999px;box-shadow:0 3px 10px rgba(0,0,0,.45);
@@ -1489,7 +1490,7 @@ function sideBetsPanelHTML(){
   const m=finalMatch(); if(!m) return "";
   const bothTeams = m.team_home && m.team_away;
   const open = sideBetsOpen();
-  const started = bothTeams && new Date(m.kickoff) <= new Date();
+  const started = bothTeams && (new Date(m.kickoff) <= new Date() || isInPlay(m) || m.finished);
   const res = sideResults();
   const my = (me&&me.final_side_bets)||{};
   const resolved = SIDE_KEYS.some(k=>res[k]); // sonuç girilmiş mi
@@ -1925,7 +1926,7 @@ function openProfile(uid, opts){
   // Final yan bahisleri — maç başladıktan/sonuç girildikten sonra herkese görünür
   let sideBlock="";
   const fm=finalMatch();
-  const started = fm && fm.team_home && fm.team_away && new Date(fm.kickoff) <= new Date();
+  const started = fm && fm.team_home && fm.team_away && (new Date(fm.kickoff) <= new Date() || isInPlay(fm) || fm.finished);
   const bets = prof.final_side_bets;
   if(started && bets){
     const res=sideResults();
@@ -3053,25 +3054,10 @@ function renderPledgeWidget(){
   // Sadece katkı sağlayanlar görür (ve mesaj açıkken)
   if(!hasPaid() || appConfig.prize_on!=="1" || total===0){ el.style.display="none"; el.innerHTML=""; return; }
   el.style.display="";
-  const ball="https://assets.adidas.com/images/w_500,f_auto,q_auto/3f6dcc811fbe49a38397134fbfc5c3f9_9366/Trionda_FIFA_Fussball-Weltmeisterschaft_26tm_Trainingsball_Weiss_JD8032_01_00_standard.jpg";
-  const size=112, r=size/2, cx=r, cy=r, R=r-1.5;
-  const step=2*Math.PI/total, start=-Math.PI/2;
-  const wedge=(a1,a2)=>{
-    const x1=cx+R*Math.cos(a1), y1=cy+R*Math.sin(a1);
-    const x2=cx+R*Math.cos(a2), y2=cy+R*Math.sin(a2);
-    const large=(a2-a1)>Math.PI?1:0;
-    return `M${cx},${cy} L${x1.toFixed(2)},${y1.toFixed(2)} A${R},${R} 0 ${large} 1 ${x2.toFixed(2)},${y2.toFixed(2)} Z`;
-  };
-  let slices="";
-  for(let i=0;i<total;i++){
-    const a1=start+i*step, a2=start+(i+1)*step;
-    const filled=i<paid;
-    slices+=`<path d="${wedge(a1,a2)}" fill="${filled?'rgba(126,224,163,.45)':'rgba(10,20,14,.05)'}" stroke="rgba(255,255,255,.6)" stroke-width="1"/>`;
-  }
+  const gif="https://i.imgflip.com/aw4fzm.gif";
   el.innerHTML=`
     <a class="pw-ball" href="https://www.intersport.de/p/adidas-ball-world-cup-league-p2235129?articleId=a203124839" target="_blank" rel="noopener" title="Ödülü gör">
-      <img src="${ball}" alt="" loading="lazy">
-      <svg viewBox="0 0 ${size} ${size}" class="pw-pie" xmlns="http://www.w3.org/2000/svg">${slices}</svg>
+      <img src="${gif}" alt="" loading="lazy">
       <span class="pw-cta">Ödülü Gör →</span>
     </a>
     <div class="pw-count">Ödüle katkıda bulunan kişi sayısı<br><b>${paid}/${total}</b></div>
