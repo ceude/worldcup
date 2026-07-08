@@ -410,6 +410,15 @@ nav.tabs button:hover{color:var(--ink)}
 .wc-legend{font-size:11px;color:var(--muted);margin-top:10px;line-height:1.6;
   background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px 12px}
 .wc-legend b{color:var(--ink)}
+/* Mobil GIF ödül pop-up'ı */
+.gifpop-media{position:relative;display:block;width:100%;max-width:300px;margin:2px auto 12px;
+  border-radius:14px;overflow:hidden;text-decoration:none;box-shadow:0 10px 28px -10px rgba(0,0,0,.6)}
+.gifpop-media img{width:100%;height:auto;display:block}
+.gifpop-cta{position:absolute;left:50%;bottom:9px;transform:translateX(-50%);white-space:nowrap;
+  background:linear-gradient(135deg,var(--gold),var(--gold2));color:#1a1206;font-weight:900;font-size:13px;
+  padding:6px 15px;border-radius:999px;box-shadow:0 3px 12px rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.25)}
+.gifpop-remain{font-size:15px;color:var(--muted);font-weight:700;margin:2px 0 16px}
+.gifpop-remain b{color:var(--gold2);font-size:17px}
 /* Final yan bahisleri */
 .sb-panel{background:linear-gradient(180deg,#12241a,#0d1b13);border:1px solid var(--line);border-radius:14px;
   padding:14px 15px;margin-top:14px}
@@ -2136,7 +2145,11 @@ function paidSet(){
   try{ return new Set(JSON.parse(appConfig.paid_users||"[]")); }catch(e){ return new Set(); }
 }
 function maybeShowOpeningPopup(){
-  // 1) En önce: Şampiyon tahmini (seçmemişse ve süre dolmadıysa)
+  // 0) Her şeyin önünde: mobilde herkese bir kez GIF ödül pop-up'ı (masaüstünde sağ alt kart var)
+  if(me && isMobileView() && appConfig.prize_on==="1" && !gifPopSeen(session.user.id)){
+    showGifPrizePopup(); markGifPopSeen(session.user.id); return;
+  }
+  // 1) Şampiyon tahmini (seçmemişse ve süre dolmadıysa)
   if(me && !me.champion && championOpen()){ showChampionPicker(); return; }
   // 2) İkinci öncelik: Ödül havuzu mesajı AÇIK ise, şampiyon seçmiş ama henüz ödememişe göster (admin hariç)
   if(me && !me.is_admin && me.champion && appConfig.prize_on==="1" && !paidSet().has(session.user.id)){ showPrizePopup(); return; }
@@ -2157,7 +2170,25 @@ function maybeShowOpeningPopup(){
   showStatPopup(c);
   markStatSeen(uid,c.id);
 }
-// Ödül havuzu (5€) hatırlatma pop-up'ı — şık, tatlı, rahatsız etmeyen
+// Mobilde herkese bir kez: GIF ödül duyurusu
+function isMobileView(){ try{ return window.matchMedia("(max-width:900px)").matches; }catch(e){ return window.innerWidth<=900; } }
+function gifPopSeen(uid){ try{ return localStorage.getItem("wcGifPop_"+uid)==="1"; }catch(e){ return false; } }
+function markGifPopSeen(uid){ try{ localStorage.setItem("wcGifPop_"+uid,"1"); }catch(e){} }
+function showGifPrizePopup(){
+  const gif="https://i.imgflip.com/aw4fzm.gif";
+  const url="https://www.intersport.de/p/adidas-ball-world-cup-league-p2235129?articleId=a203124839";
+  const remaining=matches.filter(m=> !m.finished && !isInPlay(m)).length;
+  showPopup(`
+    <button class="x" id="popupClose">✕</button>
+    <a class="gifpop-media" href="${url}" target="_blank" rel="noopener" title="Ödülü gör">
+      <img src="${gif}" alt="Ödül" loading="lazy">
+      <span class="gifpop-cta">🎁 Ödülü Gör →</span>
+    </a>
+    <h3 class="pop-h" style="color:var(--gold)">🏆 Ödül sahibini bekliyor!</h3>
+    <div class="gifpop-remain">Son: <b>${remaining} maç</b></div>
+    <button class="pop-btn" id="popupClose2" style="background:linear-gradient(135deg,var(--gold),var(--gold2));color:#151007">Tamam 👍</button>`);
+  document.querySelectorAll(".gifpop-media").forEach(a=>a.addEventListener("click",e=>e.stopPropagation()));
+}
 // Eleme maçı için skor → puan tablosu pop-up'ı (info butonu)
 function showOddsTable(mid){
   const m=matches.find(x=>x.id===mid); if(!m) return;
