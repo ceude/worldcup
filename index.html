@@ -2178,8 +2178,8 @@ function paidSet(){
   try{ return new Set(JSON.parse(appConfig.paid_users||"[]")); }catch(e){ return new Set(); }
 }
 function maybeShowOpeningPopup(){
-  // 0) Turnuva bitti: şampiyon ilan edilince herkese, her açılışta özet kartı
-  if(me && appConfig.champion_winner){ showWrapPopup(session.user.id); return; }
+  // 0) Turnuva bitti: şampiyon ilan edilince herkese, her açılışta özet kartı (admin: önizleme olarak her zaman)
+  if(me && wrapAvailable()){ showWrapPopup(session.user.id); return; }
   // 0b) Mobilde herkese bir kez GIF ödül pop-up'ı (masaüstünde sağ alt kart var)
   if(me && isMobileView() && appConfig.prize_on==="1" && !gifPopSeen(session.user.id)){
     showGifPrizePopup(); markGifPopSeen(session.user.id); return;
@@ -2284,7 +2284,15 @@ function buildWrap(uid){
           best, worst, peak, champion:prof.champion, champHit, champPts, sidePts, badge, bold};
 }
 function showWrapPopup(uid){
-  const w=buildWrap(uid||session.user.id); if(!w) return;
+  let target = uid||session.user.id;
+  let w=buildWrap(target);
+  // Admin lider tablosunda yer almaz; önizleme için ilk sıradaki oyuncunun özetini göster
+  if(!w && me && me.is_admin){
+    const rows=buildLeaderboard();
+    if(rows.length){ target=rows[0].id; w=buildWrap(target); }
+  }
+  if(!w) return;
+  const isPreviewOther = me && me.is_admin && target!==session.user.id;
   const medal = w.rank===1?"🥇":w.rank===2?"🥈":w.rank===3?"🥉":"🏁";
   const sc=w.best?scoringFor(w.best.m.stage):null;
   const bestHTML = w.best ? `<div class="wr-row ok"><span class="wr-ic">⭐</span><div>
@@ -2297,8 +2305,8 @@ function showWrapPopup(uid){
       <b>Şampiyon tahminin</b><br>${esc(trName(w.champion))} ${w.champHit?`· <i>tuttu! +${w.champPts} puan</i>`:`· <i>tutmadı</i>`}</div></div>` : "";
   const sideHTML = w.sidePts ? `<div class="wr-row ok"><span class="wr-ic">🎲</span><div>
       <b>Final yan tahminleri</b><br><i>+${w.sidePts} puan</i></div></div>` : "";
-  const preview = (!appConfig.champion_winner && me && me.is_admin)
-    ? `<div class="wr-preview">👁 Önizleme (admin) — şampiyon henüz ilan edilmedi</div>` : "";
+  const preview = (me && me.is_admin && (!appConfig.champion_winner || isPreviewOther))
+    ? `<div class="wr-preview">👁 Admin önizleme${isPreviewOther?` · ${esc(w.prof.username)}`:""}${!appConfig.champion_winner?" · şampiyon ilan edilmedi":""}</div>` : "";
 
   showPopup(`
     <button class="x" id="popupClose">✕</button>
