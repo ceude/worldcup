@@ -419,6 +419,33 @@ nav.tabs button:hover{color:var(--ink)}
   padding:6px 15px;border-radius:999px;box-shadow:0 3px 12px rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.25)}
 .gifpop-remain{font-size:15px;color:var(--muted);font-weight:700;margin:2px 0 16px}
 .gifpop-remain b{color:var(--gold2);font-size:17px}
+/* Turnuva Özeti (Wrapped) */
+.wr-preview{font-size:11px;font-weight:800;color:#ffcf9a;background:#2a1d10;border:1px solid rgba(255,140,66,.35);
+  border-radius:999px;padding:4px 12px;display:inline-block;margin-bottom:8px}
+.wr-medal{font-size:46px;line-height:1;margin:2px 0 2px}
+.wr-rank{font-size:15px;color:var(--ink);font-weight:700}
+.wr-rank b{font-size:26px;color:#fff}
+.wr-rank span{color:var(--muted);font-size:13px}
+.wr-pts{font-family:'Anton',sans-serif;font-size:34px;color:var(--gold);letter-spacing:1px;margin:2px 0 12px}
+.wr-pts span{font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;color:var(--muted);letter-spacing:1px;font-weight:800}
+.wr-badge{display:flex;align-items:center;gap:11px;text-align:left;background:linear-gradient(135deg,#1b2a1f,#132018);
+  border:1px solid rgba(212,175,55,.35);border-radius:13px;padding:10px 13px;margin-bottom:12px}
+.wr-b-ic{font-size:30px;flex:0 0 auto}
+.wr-badge b{color:var(--gold2);font-size:15px}
+.wr-badge span{color:var(--muted);font-size:12px}
+.wr-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:12px}
+.wr-stats div{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:8px 4px}
+.wr-stats b{display:block;font-size:18px;color:#fff;font-weight:900}
+.wr-stats span{font-size:9.5px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.2px}
+.wr-row{display:flex;gap:10px;align-items:flex-start;text-align:left;background:var(--panel);border:1px solid var(--line);
+  border-radius:12px;padding:9px 12px;margin-bottom:7px;font-size:12.5px;color:var(--ink);line-height:1.5}
+.wr-row b{color:#fff;font-size:12px}
+.wr-row i{font-style:normal;font-weight:800}
+.wr-row.ok{border-color:rgba(43,213,117,.3)} .wr-row.ok i{color:var(--ok)}
+.wr-row.bad{border-color:rgba(255,90,90,.25)} .wr-row.bad i{color:#ff8a8a}
+.wr-row.neu i{color:var(--muted)}
+.wr-ic{font-size:19px;flex:0 0 auto;line-height:1.3}
+.prof-wrapbtn{margin:12px 18px 0}
 /* Final yan bahisleri */
 .sb-panel{background:linear-gradient(180deg,#12241a,#0d1b13);border:1px solid var(--line);border-radius:14px;
   padding:14px 15px;margin-top:14px}
@@ -1952,11 +1979,16 @@ function openProfile(uid, opts){
     if(rows) sideBlock=`<div class="prof-side"><div class="ps-lab">🎲 Final Yan Tahminleri${sideBonus(bets)?` · +${sideBonus(bets)} puan`:""}</div>${rows}</div>`;
   }
 
+  // Turnuva Özetim butonu — kendi profilinde, şampiyon ilan edilince (admin her zaman)
+  const wrapBtn = (isSelf && showPrivate && wrapAvailable())
+    ? `<div class="prof-wrapbtn"><button class="btn gold sm" id="profWrapBtn">🎉 Turnuva Özetim</button></div>` : "";
+
   $("#modalCard").innerHTML=`
     <div class="mh"><div class="av${prof.fav_team?' flag':''}">${avatarInner(prof.username, prof.fav_team)}</div>
       <div><h3>${esc(prof.username)}</h3>
         <div class="s">${t.pts} puan · ${t.exact} tam skor · ${t.outc} doğru sonuç · ${t.picks} tahmin</div></div>
       <button class="x" id="mClose">✕</button></div>
+    ${wrapBtn}
     ${favBlock}
     ${champBlock}
     ${sideBlock}
@@ -1968,6 +2000,7 @@ function openProfile(uid, opts){
     <div class="pgrid">${rows||'<div class="empty">Henüz biten maç yok.</div>'}</div>`;
   $("#modal").classList.add("show");
   $("#mClose").onclick=closeModal;
+  const pwb=$("#profWrapBtn"); if(pwb) pwb.onclick=()=>{ closeModal(); setTimeout(()=>showWrapPopup(uid),200); };
   const pcb=$("#profChampBtn"); if(pcb) pcb.onclick=()=>{ closeModal(); showChampionPicker(); };
   const pfb=$("#profFavBtn"); if(pfb) pfb.onclick=()=>{ closeModal(); showTeamPicker(false); };
 }
@@ -2145,7 +2178,9 @@ function paidSet(){
   try{ return new Set(JSON.parse(appConfig.paid_users||"[]")); }catch(e){ return new Set(); }
 }
 function maybeShowOpeningPopup(){
-  // 0) Her şeyin önünde: mobilde herkese bir kez GIF ödül pop-up'ı (masaüstünde sağ alt kart var)
+  // 0) Turnuva bitti: şampiyon ilan edilince herkese, her açılışta özet kartı
+  if(me && appConfig.champion_winner){ showWrapPopup(session.user.id); return; }
+  // 0b) Mobilde herkese bir kez GIF ödül pop-up'ı (masaüstünde sağ alt kart var)
   if(me && isMobileView() && appConfig.prize_on==="1" && !gifPopSeen(session.user.id)){
     showGifPrizePopup(); markGifPopSeen(session.user.id); return;
   }
@@ -2170,6 +2205,125 @@ function maybeShowOpeningPopup(){
   showStatPopup(c);
   markStatSeen(uid,c.id);
 }
+/* ====================================================================
+   TURNUVA ÖZETİ (Wrapped) — şampiyon ilan edilince herkese; admin her zaman
+   ==================================================================== */
+function wrapAvailable(){
+  return !!appConfig.champion_winner || !!(me && me.is_admin);
+}
+function buildWrap(uid){
+  const prof = profiles.find(p=>p.id===uid); if(!prof) return null;
+  const rows = buildLeaderboard();
+  const meRow = rows.find(r=>r.id===uid); if(!meRow) return null;
+  const rank = meRow.rank, total = rows.length;
+
+  const bm={}; predsAll.forEach(p=>{ if(p.user_id===uid) bm[p.match_id]=p; });
+  const fin = matches.filter(m=>m.finished && new Date(m.kickoff)>=CUTOFF)
+    .sort((a,b)=> new Date(a.kickoff)-new Date(b.kickoff));
+
+  // En iyi an: en çok puan getiren tek tahmin
+  let best=null, bestPts=-1;
+  // En kötü an: herkesin (çoğunun) bildiği ama bilemediği maç
+  let worst=null, worstOthers=-1;
+  // Cesaret: sürpriz (yüksek toplam gollü / nadir) skor denemesi sayısı
+  let bold=0, exactCnt=0, outcCnt=0, missCnt=0;
+  fin.forEach(m=>{
+    const pr=bm[m.id]; if(!pr) return;
+    const g=grade(pr,m); if(!g) return;
+    if(g.type==="exact") exactCnt++; else if(g.type==="outc") outcCnt++; else missCnt++;
+    if(g.pts>bestPts){ bestPts=g.pts; best={m, pred:pr, pts:g.pts}; }
+    if((pr.home+pr.away)>=5 || Math.abs(pr.home-pr.away)>=3) bold++;
+    if(g.type==="bad"){
+      // aynı maçta kaç kişi doğru bildi?
+      let others=0;
+      predsAll.forEach(p=>{ if(p.match_id!==m.id || p.user_id===uid) return;
+        const gg=grade(p,m); if(gg && gg.type!=="bad") others++; });
+      if(others>worstOthers){ worstOthers=others; worst={m, pred:pr, others}; }
+    }
+  });
+
+  // Zirve an: turnuva boyunca ulaşılan en iyi sıra (maç maç ilerleyerek)
+  const players=profiles.filter(p=>!isHiddenUser(p.username));
+  const run={}; players.forEach(p=>run[p.id]=0);
+  let peak=total;
+  fin.forEach(m=>{
+    players.forEach(p=>{
+      const pr=(predsAll.find(x=>x.user_id===p.id && x.match_id===m.id))||null;
+      const g=grade(pr,m); if(g) run[p.id]+=g.pts;
+    });
+    const order=players.slice().sort((a,b)=> run[b.id]-run[a.id]);
+    const pos=order.findIndex(p=>p.id===uid)+1;
+    if(pos>0 && pos<peak) peak=pos;
+  });
+
+  // Şampiyon tahmini
+  const cw=appConfig.champion_winner;
+  const champHit = cw && prof.champion===cw;
+  const champPts = champHit ? (CHAMPION_POINTS[cw]||0) : 0;
+  // Yan tahmin puanı
+  const sidePts = sideBonus(prof.final_side_bets);
+
+  // Kişilik rozeti
+  const graded = exactCnt+outcCnt+missCnt;
+  const exactRate = graded? exactCnt/graded : 0;
+  const outcRate = graded? outcCnt/graded : 0;
+  const boldRate = graded? bold/graded : 0;
+  // son üçte bir vs ilk üçte bir puan (geç atak / erken kuş)
+  const third=Math.max(1,Math.floor(fin.length/3));
+  const sumPts=(list)=>list.reduce((s,m)=>{ const g=grade(bm[m.id]||null,m); return s+(g?g.pts:0); },0);
+  const early=sumPts(fin.slice(0,third)), late=sumPts(fin.slice(-third));
+  let badge;
+  if(exactRate>=0.20 && exactCnt>=6) badge={ic:"🔮",name:"Kâhin",desc:"Tam skorları görüyorsun."};
+  else if(boldRate>=0.30) badge={ic:"🎲",name:"Kumarbaz",desc:"Cesur skorlardan korkmadın."};
+  else if(late>early*1.4) badge={ic:"🚀",name:"Geç Atak",desc:"Turnuva sonuna doğru alev aldın."};
+  else if(early>late*1.4) badge={ic:"🐣",name:"Erken Kuş",desc:"Başta parladın, sonra yavaşladın."};
+  else if(outcRate>=0.55) badge={ic:"🛡️",name:"Sağlamcı",desc:"Sonucu bilmeyi garantiye aldın."};
+  else badge={ic:"⚖️",name:"Dengeci",desc:"İstikrarlı ve dengeli gittin."};
+
+  return {prof, rank, total, pts:meRow.pts, exactCnt, outcCnt, picks:meRow.picks,
+          best, worst, peak, champion:prof.champion, champHit, champPts, sidePts, badge, bold};
+}
+function showWrapPopup(uid){
+  const w=buildWrap(uid||session.user.id); if(!w) return;
+  const medal = w.rank===1?"🥇":w.rank===2?"🥈":w.rank===3?"🥉":"🏁";
+  const sc=w.best?scoringFor(w.best.m.stage):null;
+  const bestHTML = w.best ? `<div class="wr-row ok"><span class="wr-ic">⭐</span><div>
+      <b>En iyi anın</b><br>${esc(trName(w.best.m.team_home))} ${w.best.m.home_score}-${w.best.m.away_score} ${esc(trName(w.best.m.team_away))}
+      · tahminin <b>${w.best.pred.home}-${w.best.pred.away}</b> → <i>+${w.best.pts} puan</i></div></div>` : "";
+  const worstHTML = w.worst ? `<div class="wr-row bad"><span class="wr-ic">😬</span><div>
+      <b>En zor anın</b><br>${esc(trName(w.worst.m.team_home))} ${w.worst.m.home_score}-${w.worst.m.away_score} ${esc(trName(w.worst.m.team_away))}
+      · sen <b>${w.worst.pred.home}-${w.worst.pred.away}</b> dedin, <i>${w.worst.others} kişi bildi</i></div></div>` : "";
+  const champHTML = w.champion ? `<div class="wr-row ${w.champHit?'ok':'neu'}"><span class="wr-ic">${w.champHit?'🏆':'🎯'}</span><div>
+      <b>Şampiyon tahminin</b><br>${esc(trName(w.champion))} ${w.champHit?`· <i>tuttu! +${w.champPts} puan</i>`:`· <i>tutmadı</i>`}</div></div>` : "";
+  const sideHTML = w.sidePts ? `<div class="wr-row ok"><span class="wr-ic">🎲</span><div>
+      <b>Final yan tahminleri</b><br><i>+${w.sidePts} puan</i></div></div>` : "";
+  const preview = (!appConfig.champion_winner && me && me.is_admin)
+    ? `<div class="wr-preview">👁 Önizleme (admin) — şampiyon henüz ilan edilmedi</div>` : "";
+
+  showPopup(`
+    <button class="x" id="popupClose">✕</button>
+    ${preview}
+    <div class="wr-medal">${medal}</div>
+    <h3 class="pop-h" style="color:var(--gold)">Turnuva Özetin</h3>
+    <div class="wr-rank"><b>${w.rank}.</b> sırada bitirdin <span>/ ${w.total} kişi</span></div>
+    <div class="wr-pts">${w.pts.toLocaleString("tr-TR")} <span>PUAN</span></div>
+
+    <div class="wr-badge"><div class="wr-b-ic">${w.badge.ic}</div>
+      <div><b>${w.badge.name}</b><br><span>${w.badge.desc}</span></div></div>
+
+    <div class="wr-stats">
+      <div><b>${w.exactCnt}</b><span>tam skor</span></div>
+      <div><b>${w.outcCnt}</b><span>doğru sonuç</span></div>
+      <div><b>${w.picks}</b><span>tahmin</span></div>
+      <div><b>${w.peak}.</b><span>en iyi sıra</span></div>
+    </div>
+
+    ${bestHTML}${worstHTML}${champHTML}${sideHTML}
+
+    <button class="pop-btn" id="popupClose2"
+      style="background:linear-gradient(135deg,var(--gold),var(--gold2));color:#151007">Kapat 🎉</button>`);
+}
+
 // Mobilde herkese bir kez: GIF ödül duyurusu
 function isMobileView(){ try{ return window.matchMedia("(max-width:900px)").matches; }catch(e){ return window.innerWidth<=900; } }
 function gifPopSeen(uid){ try{ return localStorage.getItem("wcGifPop_"+uid)==="1"; }catch(e){ return false; } }
