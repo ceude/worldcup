@@ -446,6 +446,49 @@ nav.tabs button:hover{color:var(--ink)}
 .wr-row.neu i{color:var(--muted)}
 .wr-ic{font-size:19px;flex:0 0 auto;line-height:1.3}
 .prof-wrapbtn{margin:12px 18px 0}
+/* Takım karnesi */
+.team.clickable{cursor:pointer;border-radius:9px;transition:background .12s}
+.team.clickable:hover{background:rgba(255,255,255,.05)}
+.team.clickable:hover .nm{color:var(--gold2)}
+.tc-head{position:relative;text-align:center;padding:20px 18px 14px;border-bottom:1px solid var(--line)}
+.tc-head .x{position:absolute;top:12px;right:12px;background:#13261c;border:1px solid var(--line2);color:var(--ink);
+  width:34px;height:34px;border-radius:9px;font-size:18px;cursor:pointer}
+.tc-flag{width:64px;height:48px;object-fit:cover;border-radius:7px;box-shadow:0 4px 14px rgba(0,0,0,.5);margin-bottom:8px}
+.tc-head h3{margin:0;font-size:22px;color:#fff;font-weight:900}
+.tc-sub{font-size:12px;color:var(--muted);font-weight:700;margin-top:3px}
+.tc-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:14px 18px 6px}
+.tc-s{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:9px 4px;text-align:center}
+.tc-s b{display:block;font-size:20px;font-weight:900;color:#fff}
+.tc-s span{font-size:9.5px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.2px}
+.tc-s.w{border-color:rgba(43,213,117,.35)} .tc-s.w b{color:var(--ok)}
+.tc-s.d{border-color:rgba(212,175,55,.3)} .tc-s.d b{color:var(--gold2)}
+.tc-s.l{border-color:rgba(255,90,90,.28)} .tc-s.l b{color:#ff8a8a}
+.tc-list{padding:10px 18px 22px}
+.tc-row{display:flex;align-items:center;gap:11px;padding:9px 11px;border:1px solid var(--line);border-radius:11px;margin-bottom:7px}
+.tc-row.tc-w{background:var(--okdim);border-color:rgba(43,213,117,.28)}
+.tc-row.tc-d{background:rgba(212,175,55,.07)}
+.tc-row.tc-l{background:rgba(255,90,90,.06)}
+.tc-res{flex:0 0 auto;width:24px;height:24px;line-height:24px;text-align:center;border-radius:50%;font-weight:900;font-size:11px}
+.tc-w .tc-res{background:var(--ok);color:#06210f}
+.tc-d .tc-res{background:var(--gold);color:#1a1206}
+.tc-l .tc-res{background:#c94a4a;color:#fff}
+.tc-mid{flex:1;min-width:0}
+.tc-opp{display:flex;align-items:center;gap:7px;font-weight:800;color:#fff;font-size:14px}
+.tc-opp img{width:20px;height:15px;object-fit:cover;border-radius:3px;flex:0 0 auto}
+.tc-live{display:inline-flex;align-items:center}
+.tc-meta{font-size:11px;color:var(--muted);font-weight:600;margin-top:2px}
+.tc-score{flex:0 0 auto;font-weight:900;font-size:16px;color:#fff;font-variant-numeric:tabular-nums}
+.tc-pts{flex:0 0 auto;font-weight:900;font-size:12px;padding:3px 8px;border-radius:999px;
+  background:#0f1d15;border:1px solid var(--line2);color:var(--muted)}
+.tc-pts.exact{background:var(--okdim);border-color:rgba(43,213,117,.45);color:var(--ok)}
+.tc-pts.outc{background:var(--outcdim);border-color:rgba(70,182,255,.35);color:#8fd0ff}
+.tc-pts.bad,.tc-pts.none{opacity:.7}
+.tc-eye{flex:0 0 auto;background:#13261c;border:1px solid var(--line2);color:var(--ink);width:30px;height:30px;
+  border-radius:8px;font-size:13px;cursor:pointer;line-height:1}
+.tc-eye:hover{background:#1a3324;border-color:var(--gold)}
+.tc-back{display:inline-block;margin:10px 18px 0;background:#13261c;border:1px solid var(--line2);color:var(--gold2);
+  font-weight:800;font-size:12px;border-radius:9px;padding:7px 12px;cursor:pointer}
+.tc-back:hover{background:#1a3324}
 /* Final yan bahisleri */
 .sb-panel{background:linear-gradient(180deg,#12241a,#0d1b13);border:1px solid var(--line);border-radius:14px;
   padding:14px 15px;margin-top:14px}
@@ -1374,7 +1417,7 @@ function teamHTML(name,slot,side){
   if(name){
     const fl=flagUrl(name);
     const flg = fl?`<img class="fl" src="${fl}" alt="" loading="lazy">`:`<span class="fl ph">?</span>`;
-    return `<div class="team ${side}">${flg}<span class="nm">${esc(trName(name))}</span></div>`;
+    return `<div class="team ${side} clickable" data-team="${esc(name)}" title="${esc(trName(name))} karnesi">${flg}<span class="nm">${esc(trName(name))}</span></div>`;
   }
   return `<div class="team ${side}"><span class="fl ph">?</span><span class="nm placeholder-slot">Unknown</span></div>`;
 }
@@ -2004,6 +2047,65 @@ function openProfile(uid, opts){
   const pcb=$("#profChampBtn"); if(pcb) pcb.onclick=()=>{ closeModal(); showChampionPicker(); };
   const pfb=$("#profFavBtn"); if(pfb) pfb.onclick=()=>{ closeModal(); showTeamPicker(false); };
 }
+// Takım karnesi: turnuva boyunca sonuçlar + maç listesi
+function openTeamCard(team){
+  if(!team) return;
+  const played = matches.filter(m=> (m.team_home===team||m.team_away===team)
+      && m.home_score!=null && m.away_score!=null)
+    .sort((a,b)=> new Date(a.kickoff)-new Date(b.kickoff));
+  let w=0,d=0,l=0,gf=0,ga=0;
+  const rows = played.map(m=>{
+    const home = m.team_home===team;
+    const own = home?m.home_score:m.away_score;
+    const opp = home?m.away_score:m.home_score;
+    const other = home?m.team_away:m.team_home;
+    gf+=own; ga+=opp;
+    let res,cls;
+    if(own>opp){ w++; res="G"; cls="tc-w"; }
+    else if(own===opp){ d++; res="B"; cls="tc-d"; }
+    else { l++; res="M"; cls="tc-l"; }
+    const live = isInPlay(m) ? `<span class="tc-live"><span class="livedot"></span></span>` : "";
+    const stageTxt = m.grp?`Grup ${m.grp}`:(m.label||STAGE_LABEL[m.stage]);
+    const ofl=flagUrl(other);
+    // Kendi puanım (CUTOFF sonrası maçlar puanlanır)
+    const scored = new Date(m.kickoff)>=CUTOFF;
+    const g = scored ? grade(predsMine[m.id]||null, m) : null;
+    const myPts = g ? `<span class="tc-pts ${g.type}">${g.pts>0?"+":""}${g.pts}${isInPlay(m)?"*":""}</span>` : "";
+    return `<div class="tc-row ${cls}">
+      <span class="tc-res">${res}</span>
+      <div class="tc-mid">
+        <div class="tc-opp">${ofl?`<img src="${ofl}" alt="">`:""}<span>${esc(trName(other))}</span>${live}</div>
+        <div class="tc-meta">${esc(stageTxt)} · ${esc(fmtKick(m.kickoff))}${home?"":" · deplasman"}</div>
+      </div>
+      ${myPts}
+      <span class="tc-score">${own}–${opp}</span>
+      <button class="tc-eye" data-tcpreds="${m.id}" title="Bu maçta kim kaç puan aldı?">👁</button>
+    </div>`;
+  }).join("");
+  const fl=favFlagUrl(team);
+  const diff=gf-ga, diffTxt=(diff>0?"+":"")+diff;
+  $("#modalCard").innerHTML=`
+    <div class="tc-head">
+      <button class="x" id="mCloseTC">✕</button>
+      ${fl?`<img class="tc-flag" src="${fl}" alt="">`:""}
+      <h3>${esc(trName(team))}</h3>
+      <div class="tc-sub">Turnuva karnesi · ${played.length} maç</div>
+    </div>
+    <div class="tc-stats">
+      <div class="tc-s w"><b>${w}</b><span>Galibiyet</span></div>
+      <div class="tc-s d"><b>${d}</b><span>Beraberlik</span></div>
+      <div class="tc-s l"><b>${l}</b><span>Mağlubiyet</span></div>
+      <div class="tc-s"><b>${gf}</b><span>Attığı gol</span></div>
+      <div class="tc-s"><b>${ga}</b><span>Yediği gol</span></div>
+      <div class="tc-s"><b>${diffTxt}</b><span>Averaj</span></div>
+    </div>
+    <div class="tc-list">${rows||'<div class="empty">Henüz oynanmış maç yok.</div>'}</div>`;
+  $("#modal").classList.add("show");
+  $("#mCloseTC").onclick=closeModal;
+  $("#modalCard").querySelectorAll("[data-tcpreds]").forEach(b=>{
+    b.onclick=(e)=>{ e.stopPropagation(); openMatchPreds(+b.dataset.tcpreds, {backTeam:team}); };
+  });
+}
 function closeModal(){ $("#modal").classList.remove("show"); }
 
 // Bir maçtaki herkesin tahmini (puan rengiyle), puana göre sıralı
@@ -2035,10 +2137,13 @@ function matchResHeadHTML(m, closeId){
     <div class="mph-sub">${m.grp?`Grup ${esc(m.grp)}`:esc(m.label||STAGE_LABEL[m.stage])} · ${esc(fmtKick(m.kickoff))}</div>
   </div>`;
 }
-function openMatchPreds(mid){
+function openMatchPreds(mid, opts){
   const m=matches.find(x=>x.id===mid); if(!m || (!m.finished && !isInPlay(m))) return;
+  const back = opts && opts.backTeam;
+  const backBtn = back ? `<button class="tc-back" id="mBackTC">← ${esc(trName(back))} karnesi</button>` : "";
   $("#modalCard").innerHTML=`
     ${matchResHeadHTML(m,"mCloseAP")}
+    ${backBtn}
     <div class="legend">
       <span><i class="lg-e"></i> Tam skor</span>
       <span><i class="lg-o"></i> Sonuç</span>
@@ -2047,6 +2152,7 @@ function openMatchPreds(mid){
     <div class="mplist">${matchPredListHTML(m)}</div>`;
   $("#modal").classList.add("show");
   $("#mCloseAP").onclick=closeModal;
+  const bb=$("#mBackTC"); if(bb) bb.onclick=()=>openTeamCard(back);
 }
 // Final yan bahisleri: herkesin tahmini, kategori kategori
 function showSideBetsAll(){
@@ -3333,6 +3439,7 @@ function bindStaticUI(){
   document.addEventListener("click",e=>{ const b=e.target.closest("[data-odds]"); if(b) showOddsTable(+b.dataset.odds); });
   document.addEventListener("click",e=>{ const g=e.target.closest("g.brk-g.clk[data-mid]"); if(g) openMatchPreds(+g.dataset.mid); });
   document.addEventListener("click",e=>{ if(e.target.closest("[data-qflock]")) showQFLockPopup(); });
+  document.addEventListener("click",e=>{ const t=e.target.closest(".team.clickable[data-team]"); if(t) openTeamCard(t.dataset.team); });
   document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ closeModal(); closePopup(); } });
 }
 
