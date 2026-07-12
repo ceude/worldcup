@@ -419,6 +419,32 @@ nav.tabs button:hover{color:var(--ink)}
   padding:6px 15px;border-radius:999px;box-shadow:0 3px 12px rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.25)}
 .gifpop-remain{font-size:15px;color:var(--muted);font-weight:700;margin:2px 0 16px}
 .gifpop-remain b{color:var(--gold2);font-size:17px}
+/* Yeni Final Oyunları pop-up */
+.fg-sched{background:#13261c;border:1px solid var(--line2);border-radius:11px;padding:10px 12px;margin-bottom:10px;text-align:left}
+.fg-sched-h{font-size:12px;font-weight:800;color:var(--gold2);margin-bottom:7px}
+.fg-grid{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:4px 8px;font-size:12.5px;color:var(--ink)}
+.fg-grid span{color:var(--muted);font-weight:800}
+.fg-grid b{color:#fff;font-weight:800}
+.fg-grid span:nth-last-child(2),.fg-grid b:last-child{grid-column:span 1}
+.fg-me{background:linear-gradient(135deg,#1b2a1f,#132018);border:1px solid rgba(212,175,55,.35);border-radius:11px;
+  padding:9px 12px;margin-bottom:10px;font-size:13px;color:var(--ink)}
+.fg-me b{color:var(--gold2)}
+.fg-me.locked{border-color:rgba(255,90,90,.35)}
+.fg-all{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:9px 11px;margin-bottom:10px;text-align:left}
+.fg-all-h{font-size:12px;font-weight:800;color:#fff;margin-bottom:7px}
+.fg-plist{display:flex;flex-direction:column;gap:4px}
+.fg-prow{display:flex;align-items:center;gap:8px;font-size:13px;padding:4px 0;border-top:1px solid var(--line)}
+.fg-prow:first-child{border-top:none}
+.fg-pr-rank{flex:0 0 auto;width:24px;color:var(--muted);font-weight:900}
+.fg-pr-name{flex:1;min-width:0;color:#fff;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fg-pr-pick{flex:0 0 auto;font-weight:900;color:var(--gold2);font-variant-numeric:tabular-nums}
+.fg-pr-lock{flex:0 0 auto;width:20px;text-align:center}
+.fg-hint{font-size:11px;color:var(--muted);margin-top:6px}
+.fg-wait{font-size:12.5px;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:11px;
+  padding:10px 12px;margin-bottom:10px}
+.fg-side{font-size:12px;color:#dceae0;background:#13261c;border:1px solid var(--line2);border-radius:10px;
+  padding:9px 11px;margin-bottom:14px;text-align:left;line-height:1.45}
+.fg-side b{color:var(--gold2)}
 /* Turnuva Özeti (Wrapped) */
 .wr-preview{font-size:11px;font-weight:800;color:#ffcf9a;background:#2a1d10;border:1px solid rgba(255,140,66,.35);
   border-radius:999px;padding:4px 12px;display:inline-block;margin-bottom:8px}
@@ -1207,7 +1233,23 @@ const show = (el,on)=>el.classList.toggle("hidden",!on);
    4) Zaman / kilit yardımcıları (Almanya saati ile gösterim)
    ==================================================================== */
 const now = ()=>new Date();
-const isLocked = m => !m.team_home || !m.team_away || new Date(m.kickoff) <= now();
+// Final skor tahmini kademeli kilit: sıra → saat (1.→6s, 2.→5s ... 6.→1s, 7-8.→0)
+function finalLockHours(rank){ return Math.max(0, 7 - rank); }
+function finalRankOf(uid){ const rows=buildLeaderboard(); const r=rows.find(x=>x.id===uid); return r?r.rank:99; }
+function finalScoreLockTime(uid){
+  const fm=finalMatch(); if(!fm||!fm.kickoff) return null;
+  return new Date(new Date(fm.kickoff).getTime() - finalLockHours(finalRankOf(uid))*3600*1000);
+}
+function finalScoreLockedFor(uid){ const lt=finalScoreLockTime(uid); return lt ? (now()>=lt) : false; }
+const isLocked = m => {
+  if(!m.team_home || !m.team_away) return true;
+  // Final skor tahmini: kendi sıralamana göre kademeli kilit
+  if(m.stage==="final" && me && session){
+    if(finalScoreLockedFor(session.user.id)) return true;
+    return new Date(m.kickoff) <= now();
+  }
+  return new Date(m.kickoff) <= now();
+};
 const isLive  = m => {
   if(m.finished || !m.team_home || !m.team_away) return false;
   const k=new Date(m.kickoff).getTime(); const n=now().getTime();
@@ -2284,7 +2326,9 @@ function paidSet(){
   try{ return new Set(JSON.parse(appConfig.paid_users||"[]")); }catch(e){ return new Set(); }
 }
 function maybeShowOpeningPopup(){
-  // 0) Turnuva bitti: şampiyon ilan edilince herkese, her açılışta özet kartı (admin: önizleme olarak her zaman)
+  // 0) EN ÖNCE: Final günleri — final maçı başlamadıysa her açılışta (kickoff sonrası hiç)
+  if(me && finalGamesActive()){ showFinalGamesPopup(); return; }
+  // 0a) Turnuva bitti: şampiyon ilan edilince herkese, her açılışta özet kartı (admin: önizleme olarak her zaman)
   if(me && wrapAvailable()){ showWrapPopup(session.user.id); return; }
   // 0b) Mobilde herkese bir kez GIF ödül pop-up'ı (masaüstünde sağ alt kart var)
   if(me && isMobileView() && appConfig.prize_on==="1" && !gifPopSeen(session.user.id)){
@@ -2438,6 +2482,71 @@ function showWrapPopup(uid){
       style="background:linear-gradient(135deg,var(--gold),var(--gold2));color:#151007">Kapat 🎉</button>`);
 }
 
+// ===== YENİ FİNAL OYUNLARI POP-UP'I (bugünden final başlangıcına kadar, her açılışta) =====
+function finalGamesActive(){ const fm=finalMatch(); return !!(fm && fm.kickoff && now() < new Date(fm.kickoff)); }
+function fmtClock(d){ return d.toLocaleString("tr-TR",{timeZone:TZ,day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}); }
+function showFinalGamesPopup(){
+  const fm=finalMatch(); if(!fm) return;
+  const bothTeams = fm.team_home && fm.team_away;
+  const myRank=finalRankOf(session.user.id), myHrs=finalLockHours(myRank);
+  const myLock=finalScoreLockTime(session.user.id), myLocked=finalScoreLockedFor(session.user.id);
+  // Kilit takvimi
+  const schedule = `
+    <div class="fg-sched">
+      <div class="fg-sched-h">🔒 Skor tahmini kilit sırası (final saatinden önce)</div>
+      <div class="fg-grid">
+        <span>1.</span><b>6 saat</b><span>2.</span><b>5 saat</b>
+        <span>3.</span><b>4 saat</b><span>4.</span><b>3 saat</b>
+        <span>5.</span><b>2 saat</b><span>6.</span><b>1 saat</b>
+        <span>7-8.</span><b>maç başlangıcı</b>
+      </div>
+    </div>`;
+  const myLine = `<div class="fg-me ${myLocked?'locked':''}">
+      Sen şu an <b>${myRank}.</b> sıradasın →
+      ${myLocked ? `tahminin <b>kilitlendi</b> 🔒` :
+        (myLock ? `tahminin <b>${myHrs===0?'maç başlayınca':`${myHrs} saat önce`}</b> kilitlenir${myHrs>0?` (${fmtClock(myLock)})`:""}` : "tahmin açık")}
+    </div>`;
+  // Herkesin final tahmini (takımlar belliyse)
+  let allPreds="";
+  if(bothTeams){
+    const players=profiles.filter(p=>!isHiddenUser(p.username));
+    const rows=buildLeaderboard();
+    const rankOf={}; rows.forEach(r=>rankOf[r.id]=r.rank);
+    const byUser={}; predsAll.forEach(p=>{ if(p.match_id===fm.id) byUser[p.user_id]=p; });
+    const list=players
+      .sort((a,b)=>(rankOf[a.id]||99)-(rankOf[b.id]||99))
+      .map(p=>{
+        const pr=byUser[p.id];
+        const locked=finalScoreLockedFor(p.id);
+        const pick = pr ? `${pr.home}-${pr.away}` : "—";
+        return `<div class="fg-prow">
+          <span class="fg-pr-rank">${rankOf[p.id]||"-"}.</span>
+          <span class="fg-pr-name">${esc(p.username)}${p.id===session.user.id?' (sen)':''}</span>
+          <span class="fg-pr-pick">${pick}</span>
+          <span class="fg-pr-lock">${locked?'🔒':'✏️'}</span>
+        </div>`;
+      }).join("");
+    allPreds=`
+      <div class="fg-all">
+        <div class="fg-all-h">👁 Herkesin final skoru tahmini</div>
+        <div class="fg-plist">${list}</div>
+        <div class="fg-hint">🔒 kilitli · ✏️ hâlâ değiştirebilir</div>
+      </div>`;
+  } else {
+    allPreds=`<div class="fg-wait">Finalin iki takımı belli olunca herkesin tahmini burada görünecek.</div>`;
+  }
+
+  showPopup(`
+    <button class="x" id="popupClose">✕</button>
+    <div class="pop-ic">🏁</div>
+    <h3 class="pop-h" style="color:var(--gold)">Yeni Final Oyunları</h3>
+    <p class="pop-p" style="margin:0 0 10px">Finalde tahminler <b>maç öncesinden herkese açık</b>! Önde olanların tahmini <b>daha erken kilitlenir</b> ki geridekiler pozisyon alabilsin.</p>
+    ${schedule}
+    ${myLine}
+    ${allPreds}
+    <div class="fg-side">🎲 <b>Final Yan Tahminleri</b> (korner, kırmızı kart, penaltı, VAR) <b>maç başlayana kadar</b> oynanabilir — Maçlar → Final sekmesinden. Hepsi 90 dk içindeki adetlere göredir.</div>
+    <button class="pop-btn" id="popupClose2" style="background:linear-gradient(135deg,var(--gold),var(--gold2));color:#151007">Anladım 🏆</button>`);
+}
 // Mobilde herkese bir kez: GIF ödül duyurusu
 function isMobileView(){ try{ return window.matchMedia("(max-width:900px)").matches; }catch(e){ return window.innerWidth<=900; } }
 function gifPopSeen(uid){ try{ return localStorage.getItem("wcGifPop_"+uid)==="1"; }catch(e){ return false; } }
