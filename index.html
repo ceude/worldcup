@@ -443,8 +443,15 @@ nav.tabs button:hover{color:var(--ink)}
 .fg-wait{font-size:12.5px;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:11px;
   padding:10px 12px;margin-bottom:10px}
 .fg-side{font-size:12px;color:#dceae0;background:#13261c;border:1px solid var(--line2);border-radius:10px;
-  padding:9px 11px;margin-bottom:14px;text-align:left;line-height:1.45}
+  padding:11px 12px;margin-bottom:14px;text-align:left;line-height:1.45}
 .fg-side b{color:var(--gold2)}
+.fg-side-h{font-size:13px;font-weight:900;color:var(--gold);margin-bottom:5px}
+.fg-side-b{margin-bottom:7px}
+.fg-side-list{list-style:none;margin:0 0 8px;padding:0;display:flex;flex-direction:column;gap:5px}
+.fg-side-list li{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:12px;color:#fff}
+.fg-side-list b{color:#fff}
+.fg-side-f{font-size:11px;color:var(--muted);line-height:1.5}
+.fg-side-f b{color:var(--ink)}
 /* Turnuva Özeti (Wrapped) */
 .wr-preview{font-size:11px;font-weight:800;color:#ffcf9a;background:#2a1d10;border:1px solid rgba(255,140,66,.35);
   border-radius:999px;padding:4px 12px;display:inline-block;margin-bottom:8px}
@@ -2540,11 +2547,21 @@ function showFinalGamesPopup(){
     <button class="x" id="popupClose">✕</button>
     <div class="pop-ic">🏁</div>
     <h3 class="pop-h" style="color:var(--gold)">Yeni Final Oyunları</h3>
-    <p class="pop-p" style="margin:0 0 10px">Finalde tahminler <b>maç öncesinden herkese açık</b>! Önde olanların tahmini <b>daha erken kilitlenir</b> ki geridekiler pozisyon alabilsin.</p>
+    <p class="pop-p" style="margin:0 0 10px"><b>Sadece Final maçı</b> için: tahminler <b>maç öncesinden herkese açık</b>! Önde olanların tahmini <b>daha erken kilitlenir</b> ki geridekiler pozisyon alabilsin.</p>
     ${schedule}
     ${myLine}
     ${allPreds}
-    <div class="fg-side">🎲 <b>Final Yan Tahminleri</b> (korner, kırmızı kart, penaltı, VAR) <b>maç başlayana kadar</b> oynanabilir — Maçlar → Final sekmesinden. Hepsi 90 dk içindeki adetlere göredir.</div>
+    <div class="fg-side">
+      <div class="fg-side-h">🎲 Final Yan Oyunları — bunlar yeni!</div>
+      <div class="fg-side-b">Final maçında, skor tahmininin yanında <b>4 küçük tahmin</b> daha var; her biri ekstra puan:</div>
+      <ul class="fg-side-list">
+        <li>⛳ <b>Kaç korner olur?</b> 9.5 Alt / Üst (+10)</li>
+        <li>🟥 <b>Kırmızı kart olur mu?</b> Evet (+20) / Hayır (+10)</li>
+        <li>⚽ <b>Penaltı olur mu?</b> Evet (+20) / Hayır (+10)</li>
+        <li>📺 <b>Hakem VAR Monitörü'ne gider mi?</b> Evet / Hayır (+10)</li>
+      </ul>
+      <div class="fg-side-f"><b>Maç başlayana kadar</b> oynanabilir · Maçlar → Final sekmesinden. Hepsi <b>90 dakikalık</b> maç süresi içindeki adetlere göredir (uzatma/penaltı sayılmaz).</div>
+    </div>
     <button class="pop-btn" id="popupClose2" style="background:linear-gradient(135deg,var(--gold),var(--gold2));color:#151007">Anladım 🏆</button>`);
 }
 // Mobilde herkese bir kez: GIF ödül duyurusu
