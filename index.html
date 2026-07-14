@@ -448,20 +448,16 @@ nav.tabs button:hover{color:var(--ink)}
 .fg-panel{margin-top:0;margin-bottom:14px}
 .fg-intro{font-size:12.5px;color:#dceae0;line-height:1.5;margin:0 0 10px}
 .fg-intro b{color:var(--gold2)}
-/* "Final" tur butonu — dönen altın kenar ışığı */
+/* "Final" tur butonu — kenar çizgisi boyunca akan altın ışık */
 .pill-final{position:relative;isolation:isolate}
-.pill-final::before{content:"";position:absolute;inset:-2px;border-radius:inherit;padding:2px;z-index:-1;
-  background:conic-gradient(from 0deg, transparent 0deg, rgba(212,175,55,.15) 60deg, var(--gold) 110deg, #fff3c4 130deg, var(--gold) 150deg, rgba(212,175,55,.15) 200deg, transparent 300deg);
+.pill-final::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:2px;z-index:-1;
+  background:conic-gradient(from var(--pf-a,0deg), transparent 0deg, transparent 250deg, rgba(212,175,55,.35) 300deg, #fff3c4 340deg, var(--gold) 350deg, #fff3c4 360deg);
   -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite:xor;mask-composite:exclude;
-  animation:pillFinalSpin 2.8s linear infinite}
-.pill-final::after{content:"";position:absolute;inset:-2px;border-radius:inherit;z-index:-2;
-  background:var(--gold);filter:blur(7px);opacity:.28;animation:pillFinalPulse 2.8s ease-in-out infinite}
-@keyframes pillFinalSpin{to{transform:rotate(360deg)}}
-@keyframes pillFinalPulse{0%,100%{opacity:.18}50%{opacity:.4}}
-@media (prefers-reduced-motion: reduce){
-  .pill-final::before{animation:none}.pill-final::after{animation:none;opacity:.25}
-}
+  animation:pillFinalFlow 2.6s linear infinite}
+@property --pf-a{syntax:'<angle>';inherits:false;initial-value:0deg}
+@keyframes pillFinalFlow{to{--pf-a:360deg}}
+@media (prefers-reduced-motion: reduce){ .pill-final::before{animation:none} }
 /* ===== FİNAL HERO EFEKTLERİ ===== */
 .finalfx{display:none;position:relative;overflow:hidden;border-radius:18px;margin-bottom:16px;
   padding:30px 18px 24px;text-align:center;
@@ -491,9 +487,6 @@ nav.tabs button:hover{color:var(--ink)}
 /* kupa (5) + üstünden geçen parıltı */
 .ffx-trophy{position:relative;display:inline-block;width:86px;margin-bottom:8px;filter:drop-shadow(0 6px 16px rgba(212,175,55,.35))}
 .ffx-tsvg{width:100%;height:auto;display:block}
-.ffx-trophy::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 40%,rgba(255,255,255,.55) 50%,transparent 60%);
-  mix-blend-mode:screen;transform:translateX(-120%);animation:ffxShine 4.2s ease-in-out infinite}
-@keyframes ffxShine{0%,70%{transform:translateX(-120%)}100%{transform:translateX(120%)}}
 /* shimmer başlık (1) */
 .ffx-title{font-family:'Anton',sans-serif;font-size:40px;letter-spacing:6px;line-height:1;
   background:linear-gradient(100deg,#c99f2e 0%,#c99f2e 35%,#fff3c4 50%,#c99f2e 65%,#c99f2e 100%);
@@ -502,7 +495,7 @@ nav.tabs button:hover{color:var(--ink)}
 @keyframes ffxShimmer{0%{background-position:120% 0}100%{background-position:-120% 0}}
 .ffx-sub{font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-top:5px}
 /* giriş animasyonu (3) — sekmeye geçince bir kez */
-.finalfx.enter .ffx-trophy{animation:ffxShine 4.2s ease-in-out infinite, ffxUp .6s cubic-bezier(.2,.7,.2,1) both}
+.finalfx.enter .ffx-trophy{animation:ffxUp .6s cubic-bezier(.2,.7,.2,1) both}
 .finalfx.enter .ffx-title{animation:ffxShimmer 3.4s linear infinite, ffxUp .6s .08s cubic-bezier(.2,.7,.2,1) both}
 .finalfx.enter .ffx-sub{animation:ffxUp .6s .16s cubic-bezier(.2,.7,.2,1) both}
 @keyframes ffxUp{0%{opacity:0;transform:translateY(14px)}100%{opacity:1;transform:translateY(0)}}
