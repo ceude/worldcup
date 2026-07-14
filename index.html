@@ -457,6 +457,9 @@ nav.tabs button:hover{color:var(--ink)}
 .fr-body{max-height:0;overflow:hidden;transition:max-height .28s ease;padding:0 14px}
 .fr-body.open{max-height:520px;padding:0 14px 14px}
 .fin-seeall{margin:12px 0 0}
+.fr-dyn{font-size:12px;color:#dceae0;line-height:1.5;background:#13261c;border:1px solid var(--line2);
+  border-radius:9px;padding:9px 11px;margin-bottom:10px}
+.fr-dyn b{color:var(--gold2)}
 /* "Final" tur butonu — kenar çizgisi boyunca akan altın ışık */
 .pill-final{position:relative;isolation:isolate}
 .pill-final::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:2px;z-index:-1;
@@ -2666,10 +2669,10 @@ function finalRulesPanelHTML(){
         (myLock ? `tahminin <b>${myHrs===0?'maç başlayınca':`${myHrs} saat önce`}</b> kilitlenir${myHrs>0?` (${fmtClock(myLock)})`:""}` : "tahmin açık")}
     </div>`;
   return `<div class="fr-panel">
-    <button class="fr-head" data-frules-toggle>
+    <button class="fr-head open" data-frules-toggle>
       <span>🏁 Final Kuralları</span><span class="fr-caret">▾</span>
     </button>
-    <div class="fr-body">
+    <div class="fr-body open">
       <p class="fg-intro"><b>Sadece Final maçı</b> için: tahminler <b>maç öncesinden herkese açık</b>! Önde olanların tahmini <b>daha erken kilitlenir</b> ki geridekiler pozisyon alabilsin.</p>
       ${schedule}
       ${myLine}
