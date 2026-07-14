@@ -448,6 +448,86 @@ nav.tabs button:hover{color:var(--ink)}
 .fg-panel{margin-top:0;margin-bottom:14px}
 .fg-intro{font-size:12.5px;color:#dceae0;line-height:1.5;margin:0 0 10px}
 .fg-intro b{color:var(--gold2)}
+/* "Final" tur butonu — dönen altın kenar ışığı */
+.pill-final{position:relative;isolation:isolate}
+.pill-final::before{content:"";position:absolute;inset:-2px;border-radius:inherit;padding:2px;z-index:-1;
+  background:conic-gradient(from 0deg, transparent 0deg, rgba(212,175,55,.15) 60deg, var(--gold) 110deg, #fff3c4 130deg, var(--gold) 150deg, rgba(212,175,55,.15) 200deg, transparent 300deg);
+  -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;mask-composite:exclude;
+  animation:pillFinalSpin 2.8s linear infinite}
+.pill-final::after{content:"";position:absolute;inset:-2px;border-radius:inherit;z-index:-2;
+  background:var(--gold);filter:blur(7px);opacity:.28;animation:pillFinalPulse 2.8s ease-in-out infinite}
+@keyframes pillFinalSpin{to{transform:rotate(360deg)}}
+@keyframes pillFinalPulse{0%,100%{opacity:.18}50%{opacity:.4}}
+@media (prefers-reduced-motion: reduce){
+  .pill-final::before{animation:none}.pill-final::after{animation:none;opacity:.25}
+}
+/* ===== FİNAL HERO EFEKTLERİ ===== */
+.finalfx{display:none;position:relative;overflow:hidden;border-radius:18px;margin-bottom:16px;
+  padding:30px 18px 24px;text-align:center;
+  background:radial-gradient(120% 90% at 50% 0%, rgba(212,175,55,.12), transparent 65%),linear-gradient(180deg,#13251b,#0a1610);
+  border:1px solid rgba(212,175,55,.30);animation:ffxGlow 3.6s ease-in-out infinite}
+.finalfx.on{display:block}
+@keyframes ffxGlow{0%,100%{box-shadow:0 0 26px -14px rgba(212,175,55,.5),inset 0 0 0 1px rgba(212,175,55,.04)}
+  50%{box-shadow:0 0 42px -8px rgba(212,175,55,.7),inset 0 0 0 1px rgba(212,175,55,.10)}}
+/* dönen ışık huzmesi (6) */
+.ffx-sheen{position:absolute;top:50%;left:50%;width:340px;height:340px;transform:translate(-50%,-58%);
+  background:conic-gradient(from 0deg, transparent 0deg, rgba(212,175,55,.16) 24deg, transparent 60deg, transparent 180deg, rgba(212,175,55,.10) 210deg, transparent 250deg);
+  filter:blur(6px);animation:ffxSpin 16s linear infinite;pointer-events:none}
+@keyframes ffxSpin{to{transform:translate(-50%,-58%) rotate(360deg)}}
+/* altın toz (4) */
+.ffx-particles{position:absolute;inset:0;pointer-events:none}
+.ffx-particles span{position:absolute;bottom:-6px;width:3px;height:3px;border-radius:50%;
+  background:var(--gold);opacity:0;animation:ffxRise 6s linear infinite}
+.ffx-particles span:nth-child(1){left:12%;animation-delay:0s}
+.ffx-particles span:nth-child(2){left:24%;animation-delay:1.4s;width:2px;height:2px}
+.ffx-particles span:nth-child(3){left:38%;animation-delay:3s}
+.ffx-particles span:nth-child(4){left:52%;animation-delay:.7s;width:2px;height:2px}
+.ffx-particles span:nth-child(5){left:63%;animation-delay:2.2s}
+.ffx-particles span:nth-child(6){left:75%;animation-delay:4s;width:2px;height:2px}
+.ffx-particles span:nth-child(7){left:85%;animation-delay:1s}
+.ffx-particles span:nth-child(8){left:92%;animation-delay:3.4s;width:2px;height:2px}
+@keyframes ffxRise{0%{opacity:0;transform:translateY(0)}10%{opacity:.8}90%{opacity:.5}100%{opacity:0;transform:translateY(-120px)}}
+/* kupa (5) + üstünden geçen parıltı */
+.ffx-trophy{position:relative;display:inline-block;width:86px;margin-bottom:8px;filter:drop-shadow(0 6px 16px rgba(212,175,55,.35))}
+.ffx-tsvg{width:100%;height:auto;display:block}
+.ffx-trophy::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 40%,rgba(255,255,255,.55) 50%,transparent 60%);
+  mix-blend-mode:screen;transform:translateX(-120%);animation:ffxShine 4.2s ease-in-out infinite}
+@keyframes ffxShine{0%,70%{transform:translateX(-120%)}100%{transform:translateX(120%)}}
+/* shimmer başlık (1) */
+.ffx-title{font-family:'Anton',sans-serif;font-size:40px;letter-spacing:6px;line-height:1;
+  background:linear-gradient(100deg,#c99f2e 0%,#c99f2e 35%,#fff3c4 50%,#c99f2e 65%,#c99f2e 100%);
+  background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;
+  animation:ffxShimmer 3.4s linear infinite}
+@keyframes ffxShimmer{0%{background-position:120% 0}100%{background-position:-120% 0}}
+.ffx-sub{font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-top:5px}
+/* giriş animasyonu (3) — sekmeye geçince bir kez */
+.finalfx.enter .ffx-trophy{animation:ffxShine 4.2s ease-in-out infinite, ffxUp .6s cubic-bezier(.2,.7,.2,1) both}
+.finalfx.enter .ffx-title{animation:ffxShimmer 3.4s linear infinite, ffxUp .6s .08s cubic-bezier(.2,.7,.2,1) both}
+.finalfx.enter .ffx-sub{animation:ffxUp .6s .16s cubic-bezier(.2,.7,.2,1) both}
+@keyframes ffxUp{0%{opacity:0;transform:translateY(14px)}100%{opacity:1;transform:translateY(0)}}
+/* canlı nabız (8) */
+.finalfx.live{animation:ffxLive 1.3s ease-in-out infinite}
+@keyframes ffxLive{0%,100%{box-shadow:0 0 30px -12px rgba(212,175,55,.55)}50%{box-shadow:0 0 52px -4px rgba(212,175,55,.9),0 0 0 1px rgba(212,175,55,.25)}}
+/* şampiyon konfetisi (7) — bir kez */
+.ffx-confetti{position:absolute;inset:0;pointer-events:none;opacity:0}
+.finalfx.burst .ffx-confetti{opacity:1}
+.ffx-confetti i{position:absolute;top:-12px;width:7px;height:11px;border-radius:1px;opacity:0}
+.finalfx.burst .ffx-confetti i{animation:ffxFall 2.6s ease-in forwards}
+.ffx-confetti i:nth-child(3n){background:#d4af37}.ffx-confetti i:nth-child(3n+1){background:#f6e08a}.ffx-confetti i:nth-child(3n+2){background:#b8902a}
+.ffx-confetti i:nth-child(1){left:8%;animation-delay:0s}.ffx-confetti i:nth-child(2){left:16%;animation-delay:.15s}
+.ffx-confetti i:nth-child(3){left:25%;animation-delay:.05s}.ffx-confetti i:nth-child(4){left:33%;animation-delay:.28s}
+.ffx-confetti i:nth-child(5){left:42%;animation-delay:.1s}.ffx-confetti i:nth-child(6){left:50%;animation-delay:.34s}
+.ffx-confetti i:nth-child(7){left:58%;animation-delay:.02s}.ffx-confetti i:nth-child(8){left:66%;animation-delay:.22s}
+.ffx-confetti i:nth-child(9){left:74%;animation-delay:.12s}.ffx-confetti i:nth-child(10){left:82%;animation-delay:.3s}
+.ffx-confetti i:nth-child(11){left:90%;animation-delay:.06s}.ffx-confetti i:nth-child(12){left:20%;animation-delay:.4s}
+.ffx-confetti i:nth-child(13){left:48%;animation-delay:.46s}.ffx-confetti i:nth-child(14){left:70%;animation-delay:.5s}
+@keyframes ffxFall{0%{opacity:0;transform:translateY(0) rotate(0)}8%{opacity:1}100%{opacity:0;transform:translateY(150px) rotate(420deg)}}
+@media (prefers-reduced-motion: reduce){
+  .finalfx,.ffx-sheen,.ffx-particles span,.ffx-trophy::after,.ffx-title,.finalfx.enter .ffx-trophy,
+  .finalfx.enter .ffx-title,.finalfx.enter .ffx-sub,.finalfx.live,.finalfx.burst .ffx-confetti i{animation:none}
+  .ffx-title{background-position:0 0}
+}
 .fg-side-h{font-size:13px;font-weight:900;color:var(--gold);margin-bottom:5px}
 .fg-side-b{margin-bottom:7px}
 .fg-side-list{list-style:none;margin:0 0 8px;padding:0;display:flex;flex-direction:column;gap:5px}
@@ -933,6 +1013,28 @@ nav.tabs button:hover{color:var(--ink)}
         <div class="filters" id="stageFilters"></div>
         <div class="filters" id="sortFilters"></div>
         <div id="stageInfo"></div>
+        <div id="finalFx" class="finalfx" aria-hidden="true">
+          <div class="ffx-sheen"></div>
+          <div class="ffx-particles"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+          <div class="ffx-confetti"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="ffx-trophy">
+            <svg viewBox="0 0 120 130" class="ffx-tsvg" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="ffxG" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#f8e7a6"/><stop offset=".5" stop-color="#d4af37"/><stop offset="1" stop-color="#9a7b1e"/>
+                </linearGradient>
+              </defs>
+              <path d="M30 30 C10 30 10 56 32 60" fill="none" stroke="url(#ffxG)" stroke-width="5"/>
+              <path d="M90 30 C110 30 110 56 88 60" fill="none" stroke="url(#ffxG)" stroke-width="5"/>
+              <path d="M30 22 H90 V42 C90 66 74 80 60 80 C46 80 30 66 30 42 Z" fill="url(#ffxG)"/>
+              <rect x="55" y="80" width="10" height="18" fill="url(#ffxG)"/>
+              <path d="M42 98 H78 L74 108 H46 Z" fill="url(#ffxG)"/>
+              <rect x="37" y="108" width="46" height="8" rx="2" fill="url(#ffxG)"/>
+            </svg>
+          </div>
+          <div class="ffx-title">FİNAL</div>
+          <div class="ffx-sub" id="ffxSub">Şampiyonluk maçı</div>
+        </div>
         <div id="matchList"><div class="loading"><div class="spin"></div>Maçlar yükleniyor…</div></div>
       </section>
 
@@ -1617,6 +1719,29 @@ function renderMatches(){
     list.insertAdjacentHTML("afterbegin", finalRulesPanelHTML());
     list.insertAdjacentHTML("beforeend", sideBetsPanelHTML()); bindSideBets(list);
   }
+  updateFinalFx();
+}
+// Final hero efektleri: göster/gizle, canlı nabız, şampiyon konfetisi
+function updateFinalFx(){
+  const ffx=$("#finalFx"); if(!ffx) return;
+  const fm=finalMatch();
+  const show = curStage==="final" && !!fm;
+  ffx.classList.toggle("on", show);
+  if(!show) return;
+  ffx.classList.toggle("live", isInPlay(fm));
+  const sub=$("#ffxSub");
+  if(sub) sub.textContent = (fm.team_home && fm.team_away)
+    ? `${trName(fm.team_home)} — ${trName(fm.team_away)}` : "Şampiyonluk maçı";
+  // Şampiyon ilan edilince tek seferlik konfeti
+  if(appConfig.champion_winner && !ffx.dataset.burst){
+    ffx.dataset.burst="1"; ffx.classList.add("burst");
+    setTimeout(()=>ffx.classList.remove("burst"), 3200);
+  }
+}
+function playFinalEnter(){
+  const ffx=$("#finalFx"); if(!ffx || curStage!=="final" || !finalMatch()) return;
+  ffx.classList.add("on");
+  ffx.classList.remove("enter"); void ffx.offsetWidth; ffx.classList.add("enter");
 }
 // Final yan bahisleri paneli
 function sideBetsPanelHTML(){
@@ -1700,9 +1825,10 @@ function renderMyPicks(){
 function renderStageFilters(){
   const present=new Set(matches.map(m=>m.stage));
   $("#stageFilters").innerHTML = STAGES.filter(s=>present.has(s.k)).map(s=>
-    `<button class="pill ${s.k===curStage?"on":""}" data-stage="${s.k}">${s.label}</button>`).join("");
+    `<button class="pill ${s.k===curStage?"on":""} ${s.k==="final"?"pill-final":""}" data-stage="${s.k}">${s.label}</button>`).join("");
   $("#stageFilters").querySelectorAll(".pill").forEach(b=>b.onclick=()=>{
     curStage=b.dataset.stage; curGroup="ALL"; renderStageFilters(); renderGroupFilters(); renderSortFilters(); renderMatches();
+    if(curStage==="final") playFinalEnter();
   });
 }
 // Çeyrek final tahminleri sadece katkı sağlayanlara açık (admin muaf)
@@ -3432,6 +3558,7 @@ function switchTab(t){
   if(t==="winchance"){ renderWinChance(); }
   if(t==="chart"){ renderChart(); }
   if(t==="stats"){ renderStats(); }
+  if(t==="matches" && curStage==="final") playFinalEnter();
   if(t!=="admin") maybeNudgePrize(); // ödemeyenlere sekme geçişinde de hatırlat
 }
 function renderLeaderboardTab(){
