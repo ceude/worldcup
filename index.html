@@ -2065,6 +2065,20 @@ function lbRowHTML(r){
   </div>`;
 }
 // ===== KAZANMA OLASILIĞI (tahmini şampiyonluk yüzdesi) =====
+// Hayattaki takımların şampiyonluk olasılığı (bracket'ten dinamik: finalist %50, yarı finalde %25 …)
+const KO_ORDER = ["r32","r16","qf","sf","final"];
+function championProbs(){
+  const out={};
+  if(appConfig.champion_winner){ out[appConfig.champion_winner]=1; return out; }
+  matches.forEach(m=>{
+    const si=KO_ORDER.indexOf(m.stage);
+    if(si<0) return;                                   // grup / üçüncülük: şampiyonluk yolu değil
+    if(m.finished) return;
+    const p=Math.pow(0.5, KO_ORDER.length - si);       // final→1 maç (%50), sf→2 maç (%25) …
+    [m.team_home,m.team_away].forEach(t=>{ if(t && (out[t]==null || p>out[t])) out[t]=p; });
+  });
+  return out;
+}
 function computeWinChance(){
   const players=profiles.filter(p=>!isHiddenUser(p.username));
   if(!players.length) return [];
@@ -2074,6 +2088,7 @@ function computeWinChance(){
   const maxRemain=remaining.reduce((s,m)=> s+scoringFor(m.stage).exact,0);
   const progress = (finished.length+remaining.length)>0 ? finished.length/(finished.length+remaining.length) : 0;
   const last10=finished.slice(-10), last20=finished.slice(-20);
+  const cprob=championProbs();                          // takım → şampiyonluk ihtimali
   const predByUser={};
   predsAll.forEach(p=>{ (predByUser[p.user_id]=predByUser[p.user_id]||{})[p.match_id]=p; });
   const rows=players.map(pl=>{
@@ -2085,17 +2100,22 @@ function computeWinChance(){
       if((pr.home+pr.away)===(m.home_score+m.away_score)) goals++;
       if(Math.abs(pr.home-m.home_score)+Math.abs(pr.away-m.away_score)===1) off1++;
     });
+    // Şampiyon tahmini: elenmişse 0; hayattaysa beklenen bonus = ihtimal × puan (tabloda gösterilmez)
+    const cpts = (pl.champion && CHAMPION_POINTS[pl.champion]) || 0;
+    const cp   = (pl.champion && cprob[pl.champion]!=null) ? cprob[pl.champion] : 0;
+    const expChamp = cp*cpts, champMax = cp>0 ? cpts : 0;
     return {uid, username:pl.username, fav:pl.fav_team, P:t.pts, E:t.exact, O:t.outc,
-            form, oneSide, goals, off1, close:goals+off1, hit:t.exact*2+t.outc, ceil:t.pts+maxRemain};
+            form, oneSide, goals, off1, close:goals+off1, hit:t.exact*2+t.outc,
+            Pe:t.pts+expChamp, expChamp, ceil:t.pts+maxRemain+champMax};
   });
   const norm=key=>{ const mx=Math.max(...rows.map(r=>r[key]),0); return mx>0?(v=>v/mx):(()=>0); };
-  const nP=norm("P"), nHit=norm("hit"), nForm=norm("form"), nOne=norm("oneSide"), nClose=norm("close");
+  const nP=norm("Pe"), nHit=norm("hit"), nForm=norm("form"), nOne=norm("oneSide"), nClose=norm("close");
   // Mevcut puanın ağırlığı, turnuva ilerledikçe (kalan maç azaldıkça) artar
   const pw=0.40+0.35*progress, rest=1-pw;
   const wHit=rest*0.35, wForm=rest*0.30, wOne=rest*0.20, wClose=rest*0.15;
   const leaderP=Math.max(...rows.map(r=>r.P),0);
   rows.forEach(r=>{
-    const S = pw*nP(r.P) + wHit*nHit(r.hit) + wForm*nForm(r.form) + wOne*nOne(r.oneSide) + wClose*nClose(r.close);
+    const S = pw*nP(r.Pe) + wHit*nHit(r.hit) + wForm*nForm(r.form) + wOne*nOne(r.oneSide) + wClose*nClose(r.close);
     const alive = (r.ceil>=leaderP) ? 1 : 0.04; // lideri matematiksel yakalayamıyorsa çok düşük
     r.S=Math.max(S*alive, 0.0001);
   });
