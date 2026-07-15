@@ -2070,12 +2070,32 @@ const KO_ORDER = ["r32","r16","qf","sf","final"];
 function championProbs(){
   const out={};
   if(appConfig.champion_winner){ out[appConfig.champion_winner]=1; return out; }
+  // Her takımın ulaştığı en ileri eleme turu (üçüncülük maçı şampiyonluk yolu değil)
+  const far={};
   matches.forEach(m=>{
-    const si=KO_ORDER.indexOf(m.stage);
-    if(si<0) return;                                   // grup / üçüncülük: şampiyonluk yolu değil
-    if(m.finished) return;
-    const p=Math.pow(0.5, KO_ORDER.length - si);       // final→1 maç (%50), sf→2 maç (%25) …
-    [m.team_home,m.team_away].forEach(t=>{ if(t && (out[t]==null || p>out[t])) out[t]=p; });
+    const si=KO_ORDER.indexOf(m.stage); if(si<0) return;
+    [m.team_home,m.team_away].forEach(t=>{ if(t && (far[t]==null || si>far[t])) far[t]=si; });
+  });
+  Object.keys(far).forEach(t=>{
+    const si=far[t];
+    const m=matches.find(x=>KO_ORDER.indexOf(x.stage)===si && (x.team_home===t||x.team_away===t));
+    if(!m) return;
+    let stageIdx=si, advanced=1;
+    if(m.finished && m.home_score!=null && m.away_score!=null){
+      const home = m.team_home===t;
+      const own=home?m.home_score:m.away_score, opp=home?m.away_score:m.home_score;
+      const other=home?m.team_away:m.team_home;
+      if(own>opp) stageIdx=si+1;                          // kazandı → bir üst tur
+      else if(own<opp) advanced=0;                        // elendi
+      else{                                                // 90 dk berabere → penaltı
+        const otherLater = other && matches.some(x=>KO_ORDER.indexOf(x.stage)>si && (x.team_home===other||x.team_away===other));
+        advanced = otherLater ? 0 : 0.5;                   // rakip üst turda görünüyorsa elenmiş
+        stageIdx = si+1;
+      }
+    }
+    if(!advanced){ out[t]=0; return; }
+    const need = KO_ORDER.length - stageIdx;              // şampiyon olmak için kazanması gereken maç
+    out[t] = advanced * (need<=0 ? 1 : Math.pow(0.5, need));
   });
   return out;
 }
