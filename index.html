@@ -1335,7 +1335,7 @@ function avatarInner(username, favTeam){
    ==================================================================== */
 let sb=null, session=null, me=null;
 let matches=[], predsMine={}, predsAll=[], profiles=[], predCounts={}, appConfig={};
-let curStage="third", curGroup="ALL", adminStage="group";
+let curStage="sf", curGroup="ALL", adminStage="group";
 let sortMode="date"; // "date" = tarihe göre (varsayılan), "group" = gruba göre
 let showPast=false; // false = sadece 24 Haziran ve sonrası; true = öncesi de görünür
 let showOpenOnly=false; // Son 32 / Son 16: sadece kilitli olmayan (tahmine açık) maçlar
@@ -2123,6 +2123,20 @@ function championProbs(){
   });
   return out;
 }
+// Sürpriz skor tutma olasılığı: 200 puan ≈ %100, 280 ≈ %80, 450 ≈ %1
+function pSurprise(E){
+  if(E<=200) return 1;
+  return Math.max(0.005, Math.min(1, Math.exp(-1.954e-6*Math.pow(E-200,2.657))));
+}
+// Bir oyuncunun o maçtaki tam skor değeri (dinamik puanlama dahil)
+function exactPtsFor(m, pred){
+  const sc=scoringFor(m.stage);
+  if(pred && DYNAMIC_STAGES.has(m.stage) && oddsOf(m)){
+    const b=dynamicBonus(m, `${pred.home}-${pred.away}`);
+    if(b!=null) return sc.outc + b;
+  }
+  return sc.exact;
+}
 function computeWinChance(){
   const players=profiles.filter(p=>!isHiddenUser(p.username));
   if(!players.length) return [];
@@ -2132,7 +2146,7 @@ function computeWinChance(){
   const maxRemain=remaining.reduce((s,m)=> s+scoringFor(m.stage).exact,0);
   const progress = (finished.length+remaining.length)>0 ? finished.length/(finished.length+remaining.length) : 0;
   const last10=finished.slice(-10), last20=finished.slice(-20);
-  const cprob=championProbs();                          // takım → şampiyonluk ihtimali
+  const cprob=championProbs();
   const predByUser={};
   predsAll.forEach(p=>{ (predByUser[p.user_id]=predByUser[p.user_id]||{})[p.match_id]=p; });
   const rows=players.map(pl=>{
@@ -2144,27 +2158,55 @@ function computeWinChance(){
       if((pr.home+pr.away)===(m.home_score+m.away_score)) goals++;
       if(Math.abs(pr.home-m.home_score)+Math.abs(pr.away-m.away_score)===1) off1++;
     });
-    // Şampiyon tahmini: elenmişse 0; hayattaysa beklenen bonus = ihtimal × puan (tabloda gösterilmez)
-    const cpts = (pl.champion && CHAMPION_POINTS[pl.champion]) || 0;
-    const cp   = (pl.champion && cprob[pl.champion]!=null) ? cprob[pl.champion] : 0;
-    const expChamp = cp*cpts, champMax = cp>0 ? cpts : 0;
-    return {uid, username:pl.username, fav:pl.fav_team, P:t.pts, E:t.exact, O:t.outc,
+    const cpts=(pl.champion && CHAMPION_POINTS[pl.champion])||0;
+    const cp=(pl.champion && cprob[pl.champion]!=null)?cprob[pl.champion]:0;
+    return {uid, username:pl.username, fav:pl.fav_team, champion:pl.champion, P:t.pts, E:t.exact, O:t.outc,
             form, oneSide, goals, off1, close:goals+off1, hit:t.exact*2+t.outc,
-            Pe:t.pts+expChamp, expChamp, ceil:t.pts+maxRemain+champMax};
+            Pe:t.pts+cp*cpts, ceil:t.pts+maxRemain+(cp>0?cpts:0)};
   });
+  // --- 1) Eski model (form/isabet) — %20 ağırlık ---
   const norm=key=>{ const mx=Math.max(...rows.map(r=>r[key]),0); return mx>0?(v=>v/mx):(()=>0); };
   const nP=norm("Pe"), nHit=norm("hit"), nForm=norm("form"), nOne=norm("oneSide"), nClose=norm("close");
-  // Mevcut puanın ağırlığı, turnuva ilerledikçe (kalan maç azaldıkça) artar
   const pw=0.40+0.35*progress, rest=1-pw;
   const wHit=rest*0.35, wForm=rest*0.30, wOne=rest*0.20, wClose=rest*0.15;
-  const leaderP=Math.max(...rows.map(r=>r.P),0);
   rows.forEach(r=>{
     const S = pw*nP(r.Pe) + wHit*nHit(r.hit) + wForm*nForm(r.form) + wOne*nOne(r.oneSide) + wClose*nClose(r.close);
-    const alive = (r.ceil>=leaderP) ? 1 : 0.04; // lideri matematiksel yakalayamıyorsa çok düşük
-    r.S=Math.max(S*alive, 0.0001);
+    r.S=Math.max(S,0.0001);
   });
-  const gamma=2.6, pow=rows.map(r=>Math.pow(r.S,gamma)), sum=pow.reduce((a,b)=>a+b,0)||1;
-  rows.forEach((r,i)=>{ r.prob=pow[i]/sum*100; });
+  const gamma=2.6, pw2=rows.map(r=>Math.pow(r.S,gamma)), sumOld=pw2.reduce((a,b)=>a+b,0)||1;
+  rows.forEach((r,i)=>{ r.oldP=pw2[i]/sumOld; });
+  // --- 2) Monte Carlo — %80 ağırlık ---
+  const mxHit=Math.max(...rows.map(r=>r.hit),1);
+  rows.forEach(r=>{ r.pOut = 0.28 + 0.12*(r.hit/mxHit); });   // sonucu bilme ~%33 (forma göre 28-40)
+  const setup=rows.map(r=>({
+    uid:r.uid, base:r.P, pOut:r.pOut, champion:r.champion,
+    ms: remaining.map(m=>{
+      const pred=(predByUser[r.uid]||{})[m.id]||null;
+      const Ex=exactPtsFor(m,pred);
+      return {E:Ex, O:scoringFor(m.stage).outc, qEx:0.35*pSurprise(Ex)};
+    })
+  }));
+  const champTeams=Object.keys(cprob).filter(t=>cprob[t]>0);
+  const N=3000, wins={}; rows.forEach(r=>wins[r.uid]=0);
+  for(let s=0;s<N;s++){
+    let champ=null;
+    if(champTeams.length){ const x=Math.random(); let acc=0;
+      for(const t of champTeams){ acc+=cprob[t]; if(x<=acc){ champ=t; break; } } }
+    let best=-1, winners=[];
+    for(const p of setup){
+      let pts=p.base;
+      for(const mm of p.ms){
+        if(Math.random()<p.pOut) pts += (Math.random()<mm.qEx) ? mm.E : mm.O;
+      }
+      if(champ && p.champion===champ) pts += CHAMPION_POINTS[champ]||0;
+      if(pts>best){ best=pts; winners=[p.uid]; }
+      else if(pts===best) winners.push(p.uid);
+    }
+    for(const u of winners) wins[u]+=1/winners.length;
+  }
+  rows.forEach(r=>{ r.mc=wins[r.uid]/N; });
+  // --- 3) Harman: %80 simülasyon + %20 form ---
+  rows.forEach(r=>{ r.prob=(0.80*r.mc + 0.20*r.oldP)*100; });
   rows.sort((a,b)=> b.prob-a.prob || b.P-a.P);
   return rows;
 }
