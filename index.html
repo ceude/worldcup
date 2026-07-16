@@ -457,6 +457,16 @@ nav.tabs button:hover{color:var(--ink)}
 .fr-body{max-height:0;overflow:hidden;transition:max-height .28s ease;padding:0 14px}
 .fr-body.open{max-height:520px;padding:0 14px 14px}
 .fin-seeall{margin:12px 0 0}
+/* Herkesin şampiyon tahmini çipi (lider tablosu) */
+.champ-pick{display:inline-flex;align-items:center;gap:4px;margin-left:6px;vertical-align:middle;
+  background:#13261c;border:1px solid rgba(212,175,55,.35);border-radius:999px;padding:1px 6px 1px 3px;line-height:1}
+.champ-pick img{width:15px;height:11px;object-fit:cover;border-radius:2px;display:block}
+.champ-pick b{font-size:10.5px;font-weight:900;color:var(--gold2)}
+.champ-pick.dead{border-color:var(--line2);opacity:.55;filter:grayscale(1)}
+.champ-pick.dead b{color:var(--muted)}
+.pc-pts.zero{color:var(--muted) !important}
+.pc-lost{font-size:10px;font-weight:900;color:#ff8a8a;background:rgba(255,90,90,.12);
+  border:1px solid rgba(255,90,90,.3);border-radius:999px;padding:3px 8px;align-self:center}
 .fr-dyn{font-size:12px;color:#dceae0;line-height:1.5;background:#13261c;border:1px solid var(--line2);
   border-radius:9px;padding:9px 11px;margin-bottom:10px}
 .fr-dyn b{color:var(--gold2)}
@@ -1325,7 +1335,7 @@ function avatarInner(username, favTeam){
    ==================================================================== */
 let sb=null, session=null, me=null;
 let matches=[], predsMine={}, predsAll=[], profiles=[], predCounts={}, appConfig={};
-let curStage="third", curGroup="ALL", adminStage="group";
+let curStage="sf", curGroup="ALL", adminStage="group";
 let sortMode="date"; // "date" = tarihe göre (varsayılan), "group" = gruba göre
 let showPast=false; // false = sadece 24 Haziran ve sonrası; true = öncesi de görünür
 let showOpenOnly=false; // Son 32 / Son 16: sadece kilitli olmayan (tahmine açık) maçlar
@@ -2039,6 +2049,13 @@ function buildLeaderboard(){
   }
   rows.sort((a,b)=> b.pts-a.pts || b.exact-a.exact || a.username.localeCompare(b.username,"tr"));
   rankRows(rows);
+  // Şampiyon tahmini: hayatta mı, getireceği puan ne (elenmişse 0)
+  const cprob=championProbs();
+  rows.forEach(r=>{
+    const alive = r.champion ? (cprob[r.champion]||0)>0 : false;
+    r.champAlive = alive;
+    r.champPickPts = r.champion ? (alive ? (CHAMPION_POINTS[r.champion]||0) : 0) : 0;
+  });
   // ▲▼ için son maç (ve canlı) öncesi sıralama
   let prev=players.map(p=>{ const t=tot(p.id,true); return {id:p.id,pts:t.pts,exact:t.exact}; });
   prev.sort((a,b)=> b.pts-a.pts || b.exact-a.exact);
@@ -2055,10 +2072,17 @@ function lbRowHTML(r){
   if(r.livePts>0) st2=`<div class="st2 live"><span class="livedot"></span>${arrow}canlı +${r.livePts} (geçici)</div>`;
   else if(r.lastPts>0 || r.delta!==0) st2=`<div class="st2">${arrow}son maç${r.lastPts>0?` +${r.lastPts}`:""}</div>`;
   const champTag = r.champBonus ? `<span class="champ-badge" title="Şampiyon tahmini tuttu">🏆 +${r.champBonus}</span>` : "";
+  // Herkesin şampiyon tahmini: bayrak + getireceği puan (elenmişse +0)
+  let champPick="";
+  if(r.champion){
+    const fl=flagUrl(r.champion);
+    champPick=`<span class="champ-pick${r.champAlive?'':' dead'}" title="Şampiyon tahmini: ${esc(trName(r.champion))} · ${r.champAlive?`+${r.champPickPts} puan`:'elendi'}">
+      ${fl?`<img src="${fl}" alt="" loading="lazy">`:""}<b>+${r.champPickPts}</b></span>`;
+  }
   return `<div class="lbrow ${meCls}" data-uid="${r.id}">
     <div class="rank ${gcls}">${medal}</div>
     <div class="lbav${r.fav?' flag':''}">${avatarInner(r.username, r.fav)}</div>
-    <div class="lbinfo"><div class="nm">${esc(r.username)}${r.is_admin?' ⚙️':''}${champTag}</div>
+    <div class="lbinfo"><div class="nm">${esc(r.username)}${r.is_admin?' ⚙️':''}${champTag}${champPick}</div>
       <div class="st"><span class="e">${r.exact} tam</span> · <span class="o">${r.outc} sonuç</span> · ${r.picks} tahmin</div>
       ${st2}</div>
     <div class="lbpts">${r.pts}<small>PUAN</small></div>
@@ -2220,15 +2244,18 @@ function openProfile(uid, opts){
   const isSelf = uid===session.user.id;
   const champWinner = appConfig.champion_winner;
   let champBlock="";
-  if(prof.champion && ((isSelf && showPrivate) || (!isSelf && champWinner))){
+  if(prof.champion){
     const won = champWinner && prof.champion===champWinner;
+    const cprob=championProbs();
+    const alive=(cprob[prof.champion]||0)>0;
+    const pts = alive ? (CHAMPION_POINTS[prof.champion]||0) : 0;
     champBlock=`<div class="prof-champ${won?' won':''}">
       <img src="${favFlagUrl(prof.champion)}" alt="">
       <div class="pc-info">
-        <div class="pc-lab">🏆 Şampiyon tahmini${isSelf?' (sadece sana görünür)':''}</div>
-        <div class="pc-name">${esc(trName(prof.champion))} <span class="pc-pts">+${CHAMPION_POINTS[prof.champion]||0}</span></div>
+        <div class="pc-lab">🏆 Şampiyon tahmini</div>
+        <div class="pc-name">${esc(trName(prof.champion))} <span class="pc-pts${alive?'':' zero'}">+${pts}</span></div>
       </div>
-      ${won?'<span class="pc-won">TUTTU 🎉</span>':(champWinner?'<span class="pc-lost">—</span>':'<span class="pc-lock">🔒</span>')}
+      ${won?'<span class="pc-won">TUTTU 🎉</span>':(alive?'':'<span class="pc-lost">ELENDİ</span>')}
     </div>`;
   } else if(isSelf && showPrivate && !prof.champion && championOpen()){
     champBlock=`<div class="prof-champ empty"><div class="pc-info">
