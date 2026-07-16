@@ -3765,5 +3765,110 @@ async function boot(){
 }
 boot();
 </script>
+<!-- ========== WOCHENENDKURZTRIP POP-UP (günde 1 kez) ========== -->
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400..900&family=IBM+Plex+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  .wkt-overlay{position:fixed;inset:0;background:rgba(27,30,37,.4);
+    -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);z-index:99999;
+    display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;
+    transition:opacity .4s cubic-bezier(.16,1,.3,1);padding:16px;box-sizing:border-box}
+  .wkt-overlay.wkt-active{opacity:1;pointer-events:auto}
+  .wkt-modal{width:100%;max-width:420px;background:#1B1E25;border-radius:24px;overflow:hidden;position:relative;
+    box-shadow:0 10px 40px rgba(0,0,0,.4),0 0 0 1px rgba(255,255,255,.08);
+    transform:scale(.92) translateY(10px);transition:transform .45s cubic-bezier(.34,1.56,.64,1);
+    box-sizing:border-box;font-family:'Archivo',system-ui,sans-serif;
+    text-decoration:none;display:block;cursor:pointer}
+  .wkt-overlay.wkt-active .wkt-modal{transform:scale(1) translateY(0)}
+  .wkt-header{background:linear-gradient(135deg,#A9000F 0%,#EC0016 50%,#FF4655 100%);
+    padding:32px 24px 28px;position:relative;color:#fff;overflow:hidden;box-sizing:border-box}
+  .wkt-header::after{content:'';position:absolute;bottom:0;left:0;width:100%;height:4px;
+    background:linear-gradient(90deg,transparent 10%,rgba(255,255,255,.4) 30%,#fff 50%,rgba(255,255,255,.4) 70%,transparent 90%);opacity:.6}
+  .wkt-badge-ad{position:absolute;top:20px;left:24px;font-size:10px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.08em;color:rgba(255,255,255,.85);background:rgba(255,255,255,.12);
+    border:1px solid rgba(255,255,255,.2);padding:4px 8px;border-radius:12px;
+    -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);line-height:1}
+  .wkt-close-btn{position:absolute;top:16px;right:16px;width:32px;height:32px;border-radius:50%;
+    background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:#fff;font-size:18px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;transition:background .2s,transform .2s;z-index:10;padding:0}
+  .wkt-close-btn:hover{background:rgba(255,255,255,.25);transform:scale(1.05)}
+  .wkt-close-btn:focus-visible{outline:2px solid #fff;outline-offset:2px}
+  .wkt-eyebrow{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.15em;
+    color:rgba(255,255,255,.8);margin:16px 0 8px}
+  .wkt-headline{font-size:31px;font-weight:800;line-height:1.08;letter-spacing:-.01em;margin:0 0 14px;color:#fff}
+  .wkt-price-box{display:flex;align-items:baseline;margin-top:10px}
+  .wkt-price-label{font-size:13px;font-weight:500;color:rgba(255,255,255,.8);margin-left:10px}
+  .wkt-price-amount{font-family:'IBM Plex Mono',monospace;font-size:42px;font-weight:700;letter-spacing:-.04em;color:#fff;line-height:1}
+  .wkt-body{padding:24px;color:#fff;box-sizing:border-box}
+  .wkt-subline{font-size:14px;line-height:1.5;color:#A5A8B0;margin:0 0 22px}
+  .wkt-cta{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+    background:#EC0016;color:#fff;font-size:16px;font-weight:700;text-decoration:none;padding:14px 24px;
+    border-radius:12px;box-sizing:border-box;transition:background-color .2s,transform .1s;text-align:center}
+  .wkt-modal:hover .wkt-cta{background:#FF4655}
+  .wkt-cta svg{flex:none}
+</style>
+
+<div class="wkt-overlay" id="wktOverlay" role="dialog" aria-modal="true" aria-labelledby="wktTitle" aria-describedby="wktDesc" tabindex="-1">
+  <a class="wkt-modal" id="wktModal" href="https://ceude.github.io/HHBahn/#" target="_blank" rel="noopener noreferrer">
+    <div class="wkt-header">
+      <span class="wkt-badge-ad">Reklam</span>
+      <button class="wkt-close-btn" id="wktClose" aria-label="Kapat" type="button">&times;</button>
+      <div class="wkt-eyebrow">Hamburg'dan haftasonu</div>
+      <h2 class="wkt-headline" id="wktTitle">Wochenendkurztrip</h2>
+      <div class="wkt-price-box">
+        <span class="wkt-price-amount" id="wktPriceDisplay">—</span>
+        <span class="wkt-price-label">başlayan fiyatlarla</span>
+      </div>
+    </div>
+    <div class="wkt-body">
+      <p class="wkt-subline" id="wktDesc">Hamburg Hbf çıkışlı gidiş-dönüş — haftasonu direkt ICE seferleri, otomatik taranır.</p>
+      <span class="wkt-cta">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="3" width="10" height="14" rx="2.5"/><path d="M9 17 L7 21 M15 17 L17 21 M7 12 L17 12"/></svg>
+        Biletlere bak
+      </span>
+    </div>
+  </a>
+</div>
+
+<script>
+(function(){
+  var DATA_URL="https://ceude.github.io/HHBahn/data.js";
+  var FALLBACK_PRICE=13.98;
+  function fmt(v){ return v.toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2})+' €'; }
+  function setPrice(v){ var el=document.getElementById('wktPriceDisplay'); if(el) el.textContent=fmt(v); }
+  setPrice(FALLBACK_PRICE);
+  fetch(DATA_URL+"?cb="+Date.now())
+    .then(function(r){ return r.ok?r.text():null; })
+    .then(function(txt){
+      if(!txt) return;
+      var json=txt.replace(/^\s*window\.BAHN_DATA\s*=\s*/,"").replace(/;\s*$/,"");
+      var data=JSON.parse(json);
+      if(data.deals && data.deals.length){
+        setPrice(Math.min.apply(null,data.deals.map(function(d){ return d.total; })));
+      }
+    }).catch(function(){});
+
+  var overlay=document.getElementById('wktOverlay');
+  var closeBtn=document.getElementById('wktClose');
+  function openModal(){ overlay.classList.add('wkt-active'); }
+  function closeModal(){ overlay.classList.remove('wkt-active'); }
+  closeBtn.addEventListener('click',function(e){ e.preventDefault(); e.stopPropagation(); closeModal(); });
+  overlay.addEventListener('click',function(e){ if(e.target===overlay) closeModal(); });
+  document.getElementById('wktModal').addEventListener('click',function(){ closeModal(); });
+  window.addEventListener('keydown',function(e){
+    if(e.key==='Escape' && overlay.classList.contains('wkt-active')) closeModal();
+  });
+  // Günde bir kez (Almanya takvim günü)
+  var dayKey;
+  try{ dayKey=new Date().toLocaleDateString('en-CA',{timeZone:'Europe/Berlin'}); }catch(e){ dayKey=new Date().toDateString(); }
+  var seen;
+  try{ seen=localStorage.getItem('wktModalDay'); }catch(e){ seen=null; }
+  if(seen!==dayKey){
+    setTimeout(function(){
+      openModal();
+      try{ localStorage.setItem('wktModalDay',dayKey); }catch(e){}
+    },2000);
+  }
+})();
+</script>
 </body>
 </html>
