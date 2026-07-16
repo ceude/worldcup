@@ -404,6 +404,7 @@ nav.tabs button:hover{color:var(--ink)}
 .wc-nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px}
 .wc-pct{position:relative;min-width:82px;font-weight:900}
 .wc-sim{color:var(--muted);font-weight:800;font-variant-numeric:tabular-nums}
+.wc-sim.rare{color:var(--gold2);opacity:.85}
 .wc-table tr.top .wc-sim{color:var(--ink)}
 .wc-bar{position:absolute;left:0;top:3px;bottom:3px;border-radius:6px;
   background:linear-gradient(90deg,rgba(212,175,55,.22),rgba(212,175,55,.5));z-index:0}
@@ -2207,6 +2208,13 @@ function computeWinChance(){
     for(const u of winners) wins[u]+=1/winners.length;
   }
   rows.forEach(r=>{ r.mc=wins[r.uid]/N; r.wins=wins[r.uid]; });
+  // Matematiksel olarak hâlâ birinci olabilir mi? (kendi tahminlerinin tavanı vs liderin mevcut puanı)
+  const leaderP=Math.max(...rows.map(r=>r.P),0);
+  setup.forEach((p,i)=>{
+    const cmax = rows[i].champion && (cprob[rows[i].champion]||0)>0 ? (CHAMPION_POINTS[rows[i].champion]||0) : 0;
+    rows[i].ceilSim = p.base + p.ms.reduce((s,mm)=>s+mm.E,0) + cmax;
+    rows[i].canWin = rows[i].ceilSim >= leaderP;
+  });
   // --- 3) Harman: %80 simülasyon + %20 form ---
   rows.forEach(r=>{ r.prob=(0.80*r.mc + 0.20*r.oldP)*100; });
   rows.sort((a,b)=> b.prob-a.prob || b.P-a.P);
@@ -2231,7 +2239,7 @@ function renderWinChance(){
       <td>${r.form}</td>
       <td>${r.oneSide}</td>
       <td>${r.goals}/${r.off1}</td>
-      <td class="wc-sim">${r.winsR}</td>
+      <td class="wc-sim${r.winsR===0&&r.canWin?' rare':''}" ${r.winsR===0?`title="${r.canWin?'Mümkün ama çok nadir — 3.000 denemede denk gelmedi':'Matematiksel olarak birinci olamaz'}"`:''}>${r.winsR>0?r.winsR:(r.canWin?"&lt;1":"0")}</td>
       <td class="wc-pct"><div class="wc-bar" style="width:${Math.min(100,r.prob).toFixed(1)}%"></div><span>%${r.prob.toFixed(1)}</span></td>
     </tr>`).join("");
   box.innerHTML=`
@@ -2250,7 +2258,7 @@ function renderWinChance(){
       <b>Puan:</b> mevcut toplam puan · <b>T/S:</b> tam skor / doğru sonuç adedi ·
       <b>Form:</b> son 10 maçtan toplanan puan · <b>Tek:</b> son 20 maçta tek tarafı doğru bilme ·
       <b>G/1F:</b> toplam golü bilme / skoru 1 farkla kaçırma ·
-      <b>Sim:</b> ${MC_N.toLocaleString("tr-TR")} simülasyonun kaçında birinci bitti
+      <b>Sim:</b> ${MC_N.toLocaleString("tr-TR")} simülasyonun kaçında birinci bitti (<b>&lt;1</b>: mümkün ama çok nadir)
     </div>`;
 }
 function remainInfoHTML(){
