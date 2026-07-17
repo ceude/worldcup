@@ -2703,7 +2703,7 @@ function maybeShowOpeningPopup(){
   if(me && mcPopWindowOpen() && !mcPopSeen()){ markMcPopSeen(); showMcPopup(); return; }
   // 0-A) Şampiyon ilan edildi → tam ekran tören (bir kez zorunlu)
   if(me && appConfig.champion_winner && typeof ceremonySeen==="function" && !ceremonySeen()){
-    markCeremonySeen(); showChampionCeremony(); return;
+    markCeremonySeen(); showChampionCeremony({first:true}); return;
   }
   // 0a) Turnuva bitti: şampiyon ilan edilince herkese, her açılışta özet kartı (admin: önizleme olarak her zaman)
   if(me && wrapAvailable()){ showWrapPopup(session.user.id); return; }
@@ -4050,6 +4050,13 @@ boot();
 .cer-skip.on{opacity:1;pointer-events:auto}
 .cer-skip:hover{background:rgba(255,255,255,.16)}
 .cer-replay{margin-bottom:10px;border-color:rgba(212,175,55,.45) !important;color:var(--gold2) !important}
+.cer-jump{position:absolute;left:50%;bottom:58px;transform:translateX(-50%);z-index:5;
+  background:linear-gradient(135deg,rgba(212,175,55,.9),rgba(246,224,138,.9));border:none;color:#151007;
+  font-weight:900;font-size:12.5px;padding:10px 20px;border-radius:999px;cursor:pointer;white-space:nowrap;
+  box-shadow:0 8px 22px -10px rgba(212,175,55,.9);opacity:0;pointer-events:none;transition:opacity .4s ease}
+.cer-jump.on{opacity:1;pointer-events:auto}
+.cer-jump:hover{filter:brightness(1.07)}
+@media(max-width:420px){.cer-jump{font-size:11px;padding:9px 14px}}
 @media (prefers-reduced-motion: reduce){
   .cer-stage,.cer-title b,.pod-flag.on{animation:none !important}
 }
@@ -4070,6 +4077,7 @@ boot();
     </div>
     <div class="cer-count" id="cerCount"></div>
   </div>
+  <button class="cer-jump" id="cerJump">Listeyi atlayarak Turnuva Hikâyeme geç →</button>
   <button class="cer-skip" id="cerSkip">Atla ve siteye gir →</button>
 </div>
 
@@ -4137,6 +4145,13 @@ boot();
     setTimeout(()=>o.classList.remove("shake"), 700);
     ["pod1","pod2"].forEach(id=>{ const b=el(id).querySelector(".pod-blk"); if(b){ b.classList.remove("burst"); void b.offsetWidth; b.classList.add("burst"); } });
   }
+  async function jumpToStory(){
+    if(!running) return;
+    abort=true; running=false;
+    el("cerSkip").classList.remove("on"); el("cerJump").classList.remove("on");
+    await runWrapped();
+    closeCer();
+  }
   function closeCer(){
     abort=true; running=false;
     const o=el("cerOverlay");
@@ -4152,7 +4167,7 @@ boot();
 
   window.showChampionCeremony = async function(opts){
     if(running) return;
-    chain = !!(opts && opts.chain);      // otomatik açılışta: tören bitince özet kartı gelsin
+    const isFirst = !!(opts && opts.first);   // ilk (zorunlu) izleme → atlama yok
     const rows = buildLeaderboard();
     if(rows.length < 3) return;
     running=true; abort=false;
@@ -4164,15 +4179,18 @@ boot();
     ["pod1","pod2","pod3"].forEach(p=>el(p).innerHTML="");
     el("cerTitle").classList.remove("on"); el("cerTitle").innerHTML="";
     el("cerRays").classList.remove("go"); el("cerFlash").classList.remove("go");
-    el("cerOverlay").classList.remove("shake");
+    el("cerOverlay").classList.remove("shake"); el("cerJump").classList.remove("on");
     el("cerCount").classList.remove("tick"); el("cerCount").textContent="";
-    el("cerSkip").classList.remove("on");
+    el("cerSkip").classList.remove("on"); el("cerJump").classList.remove("on");
     zoomReset();
     el("cerOverlay").classList.add("on");
     document.body.style.overflow="hidden";
 
-    // 5. saniyeden itibaren "atla"
-    setTimeout(()=>{ if(running) el("cerSkip").classList.add("on"); }, 5000);
+    // Atlama butonları yalnızca TEKRAR izlemede
+    if(!isFirst){
+      el("cerSkip").classList.add("on");
+      el("cerJump").classList.add("on");
+    }
 
     // ---- Faz 1: 8. → 4. (alttan yukarı) ----
     const tail = rows.slice(3).reverse();          // 8,7,6,5,4
@@ -4256,6 +4274,7 @@ boot();
 
   document.addEventListener("click", e=>{
     if(e.target.closest("#cerSkip")) closeCer();
+    if(e.target.closest("#cerJump")) jumpToStory();
     if(e.target.closest("[data-cer-replay]")) showChampionCeremony();
   });
 })();
@@ -4415,7 +4434,6 @@ boot();
     el("wrpNext").disabled = last;
     el("wrpSkip").classList.toggle("hide", last);   // son slaytta büyük buton var
   }
-  function stopAuto(){ manual=true; clearTimeout(timer); }
   function closeWrp(){
     clearTimeout(timer);
     el("wrpOverlay").classList.remove("on");
@@ -4441,8 +4459,8 @@ boot();
 
   document.addEventListener("click", e=>{
     if(!el("wrpOverlay").classList.contains("on")) return;
-    if(e.target.closest("#wrpPrev")){ stopAuto(); show(idx-1); return; }
-    if(e.target.closest("#wrpNext")){ stopAuto(); show(idx+1); return; }
+    if(e.target.closest("#wrpPrev")){ show(idx-1); return; }
+    if(e.target.closest("#wrpNext")){ show(idx+1); return; }
     if(e.target.closest("#wrpCta") || e.target.closest("#wrpSkip")){
       closeWrp(); if(typeof closeChampionCeremony==="function") closeChampionCeremony(); return;
     }
@@ -4450,8 +4468,8 @@ boot();
   });
   document.addEventListener("keydown", e=>{
     if(!el("wrpOverlay").classList.contains("on")) return;
-    if(e.key==="ArrowLeft"){ stopAuto(); show(idx-1); }
-    if(e.key==="ArrowRight"){ stopAuto(); show(idx+1); }
+    if(e.key==="ArrowLeft"){ show(idx-1); }
+    if(e.key==="ArrowRight"){ show(idx+1); }
   });
 })();
 </script>
