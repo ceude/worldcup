@@ -2283,7 +2283,7 @@ function showMcPopup(){
       <span class="mcp-av">${avatarInner(r.username,r.fav)}</span>
       <span class="mcp-name">${esc(r.username)}${r.uid===session.user.id?' <i>(sen)</i>':''}</span>
       <span class="mcp-sim">${simTxt}</span>
-      <span class="mcp-pct">%${r.prob.toFixed(1)}</span>
+      <span class="mcp-pct">${pctTxt(r)}</span>
     </div>`;
   }).join("");
   showPopup(`
@@ -2296,6 +2296,14 @@ function showMcPopup(){
     <button class="pop-btn mcp-btn" id="popupClose2" style="background:linear-gradient(135deg,var(--gold),var(--gold2));color:#151007">Anladım 🎲</button>`);
 }
 const MC_N=250000;
+// Yüzde metni: >=1 → tek ondalık; <1 → ilk sıfır olmayan basamak görünene kadar (max 6 ondalık)
+function pctTxt(r){
+  const p=r.prob;
+  if(p>=1) return "%"+p.toFixed(1);
+  if(p>0){ for(let d=1;d<=6;d++){ const v=p.toFixed(d); if(parseFloat(v)>0) return "%"+v; } }
+  if(r.canWin){ const ub=(100/MC_N).toFixed(6).replace(/0+$/,""); return "&lt;%"+ub; }
+  return "%0";
+}
 function renderWinChance(){
   const box=$("#winchanceList"); if(!box) return;
   const rows=computeWinChance();
@@ -2310,7 +2318,7 @@ function renderWinChance(){
       <td>${r.oneSide}</td>
       <td>${r.goals}/${r.off1}</td>
       <td class="wc-sim${r.winsR===0&&r.canWin?' rare':''}" ${r.winsR===0?`title="${r.canWin?`Mümkün ama çok nadir — ${MC_N.toLocaleString("tr-TR")} denemede denk gelmedi`:'Matematiksel olarak birinci olamaz'}"`:''}>${r.winsR>0?r.winsR:(r.canWin?"&lt;1":"0")}</td>
-      <td class="wc-pct"><div class="wc-bar" style="width:${Math.min(100,r.prob).toFixed(1)}%"></div><span>%${r.prob.toFixed(1)}</span></td>
+      <td class="wc-pct"><div class="wc-bar" style="width:${Math.min(100,r.prob).toFixed(1)}%"></div><span>${pctTxt(r)}</span></td>
     </tr>`).join("");
   box.innerHTML=`
     <div class="wc-intro">🔮 <b>Tahmini şampiyonluk olasılığı.</b> Turnuvanın kalanı <b>Monte Carlo simülasyonu</b> ile <b>${MC_N.toLocaleString("tr-TR")} kez</b> oynatılıp kazanma oranları hesaplandı. Tablodaki diğer veriler bilgi amaçlıdır. Eğlence amaçlıdır.</div>
