@@ -4266,15 +4266,16 @@ boot();
   background:linear-gradient(180deg,#0a1a10 0%,#071009 100%)}
 .wrp.on{display:block}
 .wrp-bg{position:absolute;inset:0;opacity:.55;transition:background 1s ease}
-.wrp-bars{position:absolute;top:10px;left:10px;right:10px;display:flex;gap:4px;z-index:3}
+.wrp-bars{position:absolute;top:10px;left:10px;right:10px;display:flex;gap:4px;z-index:5}
 .wrp-bars i{flex:1;height:3px;border-radius:3px;background:rgba(255,255,255,.2);overflow:hidden;position:relative}
 .wrp-bars i b{position:absolute;inset:0;width:0;background:var(--gold);border-radius:3px;display:block}
 .wrp-bars i.done b{width:100%}
+.wrp-bars i.full b{width:100%}
 .wrp-bars i.live b{animation:wrpBar linear forwards}
 @keyframes wrpBar{from{width:0}to{width:100%}}
-.wrp-stage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:52px 22px 96px;z-index:2}
-.wrp-slide{width:100%;max-width:460px;text-align:center;display:none}
-.wrp-slide.on{display:block}
+.wrp-stage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  padding:52px clamp(46px,13vw,86px) 96px;z-index:2}
+.wrp-slide{width:100%;max-width:460px;text-align:center}
 .wrp-ic{font-size:clamp(34px,10vw,52px);line-height:1;margin-bottom:10px;
   animation:wrpPop .5s cubic-bezier(.34,1.56,.64,1) both}
 .wrp-k{font-size:clamp(11px,3vw,13px);font-weight:900;letter-spacing:.22em;text-transform:uppercase;
@@ -4283,41 +4284,61 @@ boot();
   letter-spacing:.01em;margin-bottom:8px;animation:wrpUp .5s cubic-bezier(.2,.9,.2,1) both .15s;
   word-break:break-word}
 .wrp-big.gold{background:linear-gradient(100deg,#c99f2e,#fff3c4 50%,#c99f2e);background-size:200% 100%;
-  -webkit-background-clip:text;background-clip:text;color:transparent;animation:wrpUp .5s cubic-bezier(.2,.9,.2,1) both .15s, cerShim 3s linear infinite}
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  animation:wrpUp .5s cubic-bezier(.2,.9,.2,1) both .15s, cerShim 3s linear infinite}
 .wrp-sub{font-size:clamp(14px,3.6vw,17px);color:#dce9e1;font-weight:700;line-height:1.5;
   animation:wrpUp .5s ease both .3s}
 .wrp-note{font-size:12.5px;color:var(--muted);font-weight:600;margin-top:12px;line-height:1.5;
   animation:wrpUp .5s ease both .45s}
-.wrp-chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:14px;
-  animation:wrpUp .5s ease both .4s}
-.wrp-chips span{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:999px;
-  padding:7px 13px;font-size:12.5px;font-weight:800;color:#fff}
-.wrp-chips span b{color:var(--gold2)}
 @keyframes wrpUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
 @keyframes wrpPop{from{opacity:0;transform:scale(.5)}to{opacity:1;transform:scale(1)}}
-.wrp-skip{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);z-index:4;
+/* oklar */
+.wrp-nav{position:absolute;top:50%;transform:translateY(-50%);z-index:6;
+  width:clamp(36px,9vw,46px);height:clamp(36px,9vw,46px);border-radius:50%;
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);color:#fff;
+  font-size:clamp(16px,4vw,20px);line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:background .18s,opacity .18s,transform .12s}
+.wrp-nav:hover{background:rgba(255,255,255,.18)}
+.wrp-nav:active{transform:translateY(-50%) scale(.92)}
+.wrp-nav.prev{left:clamp(6px,2.5vw,18px)}
+.wrp-nav.next{right:clamp(6px,2.5vw,18px)}
+.wrp-nav[disabled]{opacity:.25;cursor:default}
+/* son slayt CTA */
+.wrp-cta{margin-top:22px;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#151007;
+  border:none;border-radius:12px;font-weight:900;font-size:15px;padding:13px 26px;cursor:pointer;
+  box-shadow:0 10px 26px -10px rgba(212,175,55,.8);animation:wrpUp .5s ease both .5s}
+.wrp-cta:hover{filter:brightness(1.06)}
+.wrp-skip{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);z-index:6;
   background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.2);color:#e9f2ec;
   font-weight:800;font-size:12.5px;padding:10px 20px;border-radius:999px;cursor:pointer}
 .wrp-skip:hover{background:rgba(255,255,255,.17)}
+.wrp-skip.hide{display:none}
 .wrp-tap{position:absolute;inset:0;z-index:1;cursor:pointer}
-@media (prefers-reduced-motion: reduce){ .wrp-ic,.wrp-k,.wrp-big,.wrp-sub,.wrp-note,.wrp-chips{animation:none} }
+@media (prefers-reduced-motion: reduce){ .wrp-ic,.wrp-k,.wrp-big,.wrp-sub,.wrp-note,.wrp-cta{animation:none} }
 </style>
 
 <div class="wrp" id="wrpOverlay" aria-hidden="true">
   <div class="wrp-bg" id="wrpBg"></div>
   <div class="wrp-tap" id="wrpTap"></div>
   <div class="wrp-bars" id="wrpBars"></div>
-  <div class="wrp-stage"><div class="wrp-slide on" id="wrpSlide"></div></div>
+  <button class="wrp-nav prev" id="wrpPrev" aria-label="Geri">‹</button>
+  <button class="wrp-nav next" id="wrpNext" aria-label="İleri">›</button>
+  <div class="wrp-stage"><div class="wrp-slide" id="wrpSlide"></div></div>
   <button class="wrp-skip" id="wrpSkip">Siteye gir →</button>
 </div>
 
 <script>
 (function(){
   const el=id=>document.getElementById(id);
-  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-  let wAbort=false, wNext=null;
+  const TONES=[
+    "radial-gradient(90% 70% at 50% 30%, rgba(212,175,55,.28), transparent 70%)",
+    "radial-gradient(90% 70% at 30% 60%, rgba(70,182,255,.22), transparent 70%)",
+    "radial-gradient(90% 70% at 70% 40%, rgba(43,213,117,.22), transparent 70%)",
+    "radial-gradient(90% 70% at 50% 70%, rgba(255,120,80,.20), transparent 70%)",
+    "radial-gradient(90% 70% at 40% 30%, rgba(180,120,255,.22), transparent 70%)"
+  ];
+  let slides=[], idx=0, manual=false, timer=null, finish=null;
 
-  // --- ek istatistikler ---
   function extraStats(uid){
     const bm={}; predsAll.forEach(p=>{ if(p.user_id===uid) bm[p.match_id]=p; });
     const fin=matches.filter(m=>m.finished && m.home_score!=null && new Date(m.kickoff)>=CUTOFF)
@@ -4327,10 +4348,8 @@ boot();
     fin.forEach(m=>{
       const pr=bm[m.id]; const g=grade(pr||null,m);
       if(g && g.pts>0){ cur++; if(cur>streak) streak=cur; } else cur=0;
-      if(pr){
-        gp+=pr.home+pr.away; ga+=m.home_score+m.away_score;
-        const k=`${pr.home}-${pr.away}`; freq[k]=(freq[k]||0)+1;
-      }
+      if(pr){ gp+=pr.home+pr.away; ga+=m.home_score+m.away_score;
+        const k=`${pr.home}-${pr.away}`; freq[k]=(freq[k]||0)+1; }
       if(g) byStage[m.stage]=(byStage[m.stage]||0)+g.pts;
     });
     let favSc=null, favN=0;
@@ -4339,100 +4358,100 @@ boot();
     Object.keys(byStage).forEach(k=>{ if(byStage[k]>bestPts){ bestPts=byStage[k]; bestStage=k; } });
     return {streak, favSc, favN, goalsPred:gp, goalsReal:ga, bestStage, bestPts};
   }
-
-  const TONES=[
-    "radial-gradient(90% 70% at 50% 30%, rgba(212,175,55,.28), transparent 70%)",
-    "radial-gradient(90% 70% at 30% 60%, rgba(70,182,255,.22), transparent 70%)",
-    "radial-gradient(90% 70% at 70% 40%, rgba(43,213,117,.22), transparent 70%)",
-    "radial-gradient(90% 70% at 50% 70%, rgba(255,120,80,.20), transparent 70%)",
-    "radial-gradient(90% 70% at 40% 30%, rgba(180,120,255,.22), transparent 70%)"
-  ];
-
   function buildSlides(w, x){
     const medal = w.rank===1?"🥇":w.rank===2?"🥈":w.rank===3?"🥉":"🏁";
     const S=[];
     S.push({ic:"✨", k:"Turnuva bitti", big:"İşte Turnuva Özetin", sub:esc(w.prof.username), dur:3000});
     S.push({ic:medal, k:"Bitiriş sıran", big:`${w.rank}.`, sub:`${w.total} oyuncu arasında`, dur:3000});
-    S.push({ic:"⚡", k:"Toplam puanın", big:w.pts.toLocaleString("tr-TR"), gold:1,
-            sub:`${w.picks} tahmin yaptın`, dur:3000});
-    S.push({ic:"🎯", k:"İsabetin", big:`${w.exactCnt} tam skor`,
-            sub:`ve ${w.outcCnt} doğru sonuç`, dur:3000});
-    if(x.streak>1) S.push({ic:"🔥", k:"En uzun serin", big:`${x.streak} maç`,
-            sub:"üst üste puan aldın", dur:2900});
+    S.push({ic:"⚡", k:"Toplam puanın", big:w.pts.toLocaleString("tr-TR"), gold:1, sub:`${w.picks} tahmin yaptın`, dur:3000});
+    S.push({ic:"🎯", k:"İsabetin", big:`${w.exactCnt} tam skor`, sub:`ve ${w.outcCnt} doğru sonuç`, dur:3000});
+    if(x.streak>1) S.push({ic:"🔥", k:"En uzun serin", big:`${x.streak} maç`, sub:"üst üste puan aldın", dur:2900});
     if(x.favSc) S.push({ic:"🎲", k:"Favori skorun", big:x.favSc, sub:`${x.favN} kez bu skoru yazdın`, dur:2900});
-    if(x.goalsPred) S.push({ic:"⚽", k:"Gol tahminin", big:`${x.goalsPred} gol`,
-            sub:`sahada ${x.goalsReal} gol atıldı`,
-            note: x.goalsPred>x.goalsReal?"Sen sahadan daha hücumcuymuşsun 😄":(x.goalsPred<x.goalsReal?"Sahadakiler senden cömert çıktı":"Tam isabet!"), dur:3000});
+    if(x.goalsPred) S.push({ic:"⚽", k:"Gol tahminin", big:`${x.goalsPred} gol`, sub:`sahada ${x.goalsReal} gol atıldı`,
+      note: x.goalsPred>x.goalsReal?"Sen sahadan daha hücumcuymuşsun 😄":(x.goalsPred<x.goalsReal?"Sahadakiler senden cömert çıktı":"Tam isabet!"), dur:3000});
     if(x.bestStage) S.push({ic:"📈", k:"En verimli turun", big:esc(STAGE_LABEL[x.bestStage]||x.bestStage),
-            sub:`${x.bestPts.toLocaleString("tr-TR")} puan topladın`, dur:2900});
+      sub:`${x.bestPts.toLocaleString("tr-TR")} puan topladın`, dur:2900});
     S.push({ic:"🏔️", k:"Zirven", big:`${w.peak}. sıra`, sub:"turnuva boyunca çıktığın en yüksek yer", dur:2900});
     if(w.best) S.push({ic:"⭐", k:"En iyi anın", big:`+${w.best.pts}`, gold:1,
-            sub:`${esc(trName(w.best.m.team_home))} ${w.best.m.home_score}-${w.best.m.away_score} ${esc(trName(w.best.m.team_away))}`,
-            note:`Tahminin: ${w.best.pred.home}-${w.best.pred.away}`, dur:3400});
-    if(w.worst) S.push({ic:"😬", k:"En zor anın", big:`${esc(trName(w.worst.m.team_home))} ${w.worst.m.home_score}-${w.worst.m.away_score} ${esc(trName(w.worst.m.team_away))}`,
-            sub:`Sen ${w.worst.pred.home}-${w.worst.pred.away} demiştin`,
-            note:`${w.worst.others} kişi bu maçı bildi`, dur:3400});
-    if(w.champion) S.push({ic:w.champHit?"🏆":"🎯", k:"Şampiyon tahminin",
-            big:esc(trName(w.champion)), gold:w.champHit?1:0,
-            sub:w.champHit?`Tuttu! +${w.champPts} puan`:"Bu sefer olmadı", dur:3200});
+      sub:`${esc(trName(w.best.m.team_home))} ${w.best.m.home_score}-${w.best.m.away_score} ${esc(trName(w.best.m.team_away))}`,
+      note:`Tahminin: ${w.best.pred.home}-${w.best.pred.away}`, dur:3400});
+    if(w.worst) S.push({ic:"😬", k:"En zor anın",
+      big:`${esc(trName(w.worst.m.team_home))} ${w.worst.m.home_score}-${w.worst.m.away_score} ${esc(trName(w.worst.m.team_away))}`,
+      sub:`Sen ${w.worst.pred.home}-${w.worst.pred.away} demiştin`, note:`${w.worst.others} kişi bu maçı bildi`, dur:3400});
+    if(w.champion) S.push({ic:w.champHit?"🏆":"🎯", k:"Şampiyon tahminin", big:esc(trName(w.champion)),
+      gold:w.champHit?1:0, sub:w.champHit?`Tuttu! +${w.champPts} puan`:"Bu sefer olmadı", dur:3200});
     if(w.sidePts) S.push({ic:"🎲", k:"Final yan tahminleri", big:`+${w.sidePts}`, sub:"ekstra puan", dur:2700});
     S.push({ic:w.badge.ic, k:"Tipin", big:esc(w.badge.name), gold:1, sub:esc(w.badge.desc), dur:3400});
     S.push({ic:"🏆", k:"Dünya Kupası 2026", big:"Görüşmek üzere!", sub:"Tahmin Ligi · 56 maç · 8 oyuncu",
-            note:"Sıralamayı Lider Tablosu'ndan tekrar görebilirsin", dur:3600});
+      note:"Sıralamayı Lider Tablosu'ndan tekrar görebilirsin", cta:"Siteye gir →", dur:0});
     return S;
   }
-
   function slideHTML(s){
     return `<div class="wrp-ic">${s.ic}</div>
       <div class="wrp-k">${s.k}</div>
       <div class="wrp-big${s.gold?' gold':''}">${s.big}</div>
       ${s.sub?`<div class="wrp-sub">${s.sub}</div>`:""}
-      ${s.note?`<div class="wrp-note">${s.note}</div>`:""}`;
+      ${s.note?`<div class="wrp-note">${s.note}</div>`:""}
+      ${s.cta?`<button class="wrp-cta" id="wrpCta">${s.cta}</button>`:""}`;
   }
+  function show(i){
+    if(i<0 || i>=slides.length) return;
+    idx=i; clearTimeout(timer);
+    const s=slides[i], last=(i===slides.length-1);
+    el("wrpBg").style.background=TONES[i%TONES.length];
+    el("wrpSlide").innerHTML=slideHTML(s);
+    const bars=[...el("wrpBars").children];
+    bars.forEach((b,j)=>{
+      b.classList.remove("live","done","full");
+      if(j<i) b.classList.add("done");
+      else if(j===i){ if(manual || last) b.classList.add("full"); }
+    });
+    if(!manual && !last){
+      const bar=bars[i]; bar.classList.add("live");
+      bar.querySelector("b").style.animationDuration=s.dur+"ms";
+      timer=setTimeout(()=>show(i+1), s.dur);
+    }
+    el("wrpPrev").disabled = (i===0);
+    el("wrpNext").disabled = last;
+    el("wrpSkip").classList.toggle("hide", last);   // son slaytta büyük buton var
+  }
+  function stopAuto(){ manual=true; clearTimeout(timer); }
   function closeWrp(){
-    wAbort=true;
+    clearTimeout(timer);
     el("wrpOverlay").classList.remove("on");
     document.body.style.overflow="";
+    if(finish){ const f=finish; finish=null; f(); }
   }
   window.closeWrapped = closeWrp;
 
-  window.runWrapped = async function(){
-    let uid=session.user.id;
-    let w = (typeof buildWrap==="function") ? buildWrap(uid) : null;
-    if(!w && me && me.is_admin){                       // admin lider tablosunda yok → 1.'nin özeti
-      const rr=buildLeaderboard(); if(rr.length){ uid=rr[0].id; w=buildWrap(uid); }
-    }
-    if(!w) return;
-    const x = extraStats(uid);
-    const S = buildSlides(w, x);
-    wAbort=false;
-    el("wrpBars").innerHTML=S.map(()=>`<i><b></b></i>`).join("");
-    el("wrpOverlay").classList.add("on");
-    document.body.style.overflow="hidden";
-    const bars=[...el("wrpBars").children];
-    for(let i=0;i<S.length;i++){
-      if(wAbort) return;
-      const s=S[i];
-      el("wrpBg").style.background=TONES[i%TONES.length];
-      const box=el("wrpSlide");
-      box.innerHTML=slideHTML(s);
-      bars.forEach((b,j)=>{ b.classList.toggle("done", j<i); b.classList.remove("live"); });
-      const bar=bars[i]; bar.classList.add("live");
-      bar.querySelector("b").style.animationDuration=s.dur+"ms";
-      // slayt süresi veya tıklama
-      await new Promise(res=>{
-        let done=false;
-        const fin=()=>{ if(done) return; done=true; wNext=null; clearTimeout(tm); res(); };
-        const tm=setTimeout(fin, s.dur);
-        wNext=fin;
-      });
-    }
-    if(!wAbort){ el("wrpOverlay").classList.remove("on"); document.body.style.overflow=""; }
+  window.runWrapped = function(){
+    return new Promise(resolve=>{
+      let uid=session.user.id;
+      let w=(typeof buildWrap==="function") ? buildWrap(uid) : null;
+      if(!w && me && me.is_admin){ const rr=buildLeaderboard(); if(rr.length){ uid=rr[0].id; w=buildWrap(uid); } }
+      if(!w){ resolve(); return; }
+      slides=buildSlides(w, extraStats(uid));
+      idx=0; manual=false; finish=resolve;
+      el("wrpBars").innerHTML=slides.map(()=>`<i><b></b></i>`).join("");
+      el("wrpOverlay").classList.add("on");
+      document.body.style.overflow="hidden";
+      show(0);
+    });
   };
 
   document.addEventListener("click", e=>{
-    if(e.target.closest("#wrpSkip")){ closeWrp(); if(typeof closeChampionCeremony==="function") closeChampionCeremony(); return; }
-    if(e.target.closest("#wrpTap") && wNext) wNext();
+    if(!el("wrpOverlay").classList.contains("on")) return;
+    if(e.target.closest("#wrpPrev")){ stopAuto(); show(idx-1); return; }
+    if(e.target.closest("#wrpNext")){ stopAuto(); show(idx+1); return; }
+    if(e.target.closest("#wrpCta") || e.target.closest("#wrpSkip")){
+      closeWrp(); if(typeof closeChampionCeremony==="function") closeChampionCeremony(); return;
+    }
+    if(e.target.closest("#wrpTap")){ if(idx<slides.length-1) show(idx+1); }
+  });
+  document.addEventListener("keydown", e=>{
+    if(!el("wrpOverlay").classList.contains("on")) return;
+    if(e.key==="ArrowLeft"){ stopAuto(); show(idx-1); }
+    if(e.key==="ArrowRight"){ stopAuto(); show(idx+1); }
   });
 })();
 </script>
