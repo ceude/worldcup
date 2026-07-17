@@ -3950,13 +3950,30 @@ boot();
 @keyframes cerBeat{0%,100%{filter:brightness(1) saturate(1)}
   38%{filter:brightness(1.5) saturate(1.2)}52%{filter:brightness(1.06)}
   70%{filter:brightness(1.28)}84%{filter:brightness(1)}}
+.cer.shake{animation:cerShake .6s cubic-bezier(.36,.07,.19,.97)}
+@keyframes cerShake{10%,90%{transform:translate3d(-3px,1px,0)}20%,80%{transform:translate3d(5px,-2px,0)}
+  30%,50%,70%{transform:translate3d(-9px,2px,0)}40%,60%{transform:translate3d(9px,-2px,0)}}
+.cer-flash{position:absolute;inset:0;pointer-events:none;opacity:0;z-index:3;
+  background:radial-gradient(65% 55% at 50% 60%, rgba(255,248,214,.95), rgba(212,175,55,.4) 42%, transparent 72%)}
+.cer-flash.go{animation:cerFlash 1s ease-out}
+@keyframes cerFlash{0%{opacity:0}6%{opacity:1}100%{opacity:0}}
+.cer-rays{position:absolute;top:50%;left:50%;width:180vmax;height:180vmax;transform:translate(-50%,-50%) scale(.2);
+  pointer-events:none;opacity:0;z-index:0;
+  background:conic-gradient(from 0deg, rgba(212,175,55,.16) 0 6deg, transparent 6deg 22deg)}
+.cer-rays.go{animation:cerRays 1.6s ease-out forwards, cerSpin 26s linear infinite}
+@keyframes cerRays{0%{opacity:0;transform:translate(-50%,-50%) scale(.2)}
+  22%{opacity:.85}100%{opacity:.32;transform:translate(-50%,-50%) scale(1)}}
+@keyframes cerSpin{to{transform:translate(-50%,-50%) rotate(360deg) scale(1)}}
+.pod-blk.burst{animation:podBurst .9s ease-out}
+@keyframes podBurst{0%{box-shadow:0 0 0 0 rgba(255,245,200,.95);transform:scale(1)}
+  28%{transform:scale(1.07)}100%{box-shadow:0 0 70px -8px rgba(212,175,55,.35);transform:scale(1)}}
 .cer-vig{position:absolute;inset:0;pointer-events:none;opacity:0;z-index:1;
   background:radial-gradient(120% 100% at 50% 62%, transparent 38%, rgba(212,175,55,.3) 100%)}
 .cer-vig.beat{animation:vigBeat .8s ease-in-out infinite}
 @keyframes vigBeat{0%,100%{opacity:.12}38%{opacity:.85}52%{opacity:.25}70%{opacity:.55}}
 /* --- büyük başlık --- */
-.cer-title{position:absolute;top:6%;left:0;right:0;text-align:center;opacity:0;transform:scale(.8);
-  transition:opacity .5s ease,transform .6s cubic-bezier(.34,1.56,.64,1);pointer-events:none;padding:0 10px}
+.cer-title{position:absolute;top:6%;left:0;right:0;text-align:center;opacity:0;transform:scale(.55);
+  transition:opacity .22s ease,transform .38s cubic-bezier(.2,1.8,.4,1);pointer-events:none;padding:0 10px;z-index:4}
 .cer-title.on{opacity:1;transform:scale(1)}
 .cer-title small{display:block;font-size:clamp(10px,2.6vw,13px);font-weight:900;letter-spacing:.35em;
   color:var(--gold2);text-transform:uppercase;margin-bottom:2px}
@@ -4042,6 +4059,8 @@ boot();
 <div class="cer" id="cerOverlay" aria-hidden="true">
   <div class="cer-conf" id="cerConf"></div>
   <div class="cer-vig" id="cerVig"></div>
+  <div class="cer-rays" id="cerRays"></div>
+  <div class="cer-flash" id="cerFlash"></div>
   <div class="cer-stage" id="cerStage">
     <div class="cer-title" id="cerTitle"></div>
     <div class="cer-list" id="cerList"></div>
@@ -4059,7 +4078,7 @@ boot();
 (function(){
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   const T=ms=>sleep(Math.round(ms*1.2));            // her şey %20 daha yavaş
-  let abort=false, running=false;
+  let abort=false, running=false, chain=false;
   const el=id=>document.getElementById(id);
   const reduced=()=>window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -4104,26 +4123,37 @@ boot();
   }
   function zoomReset(){ const st=el("cerStage"); st.style.transform="scale(1)"; }
   function fireConfetti(){
-    const c=el("cerConf"); const cols=["#d4af37","#f6e08a","#b8902a","#fff3c4"];
-    c.innerHTML=Array.from({length:60},(_,i)=>{
-      const l=Math.random()*100, d=(Math.random()*1.4).toFixed(2), t=(2.6+Math.random()*2).toFixed(2);
-      return `<i style="left:${l}%;background:${cols[i%4]};animation-delay:${d}s;animation-duration:${t}s"></i>`;
+    const c=el("cerConf"); const cols=["#d4af37","#f6e08a","#b8902a","#fff3c4","#ffffff"];
+    c.innerHTML=Array.from({length:130},(_,i)=>{
+      const l=Math.random()*100, d=(Math.random()*1.9).toFixed(2), t=(2.2+Math.random()*2.4).toFixed(2);
+      const w=4+Math.round(Math.random()*6), h=8+Math.round(Math.random()*9);
+      return `<i style="left:${l}%;width:${w}px;height:${h}px;background:${cols[i%5]};animation-delay:${d}s;animation-duration:${t}s"></i>`;
     }).join("");
     c.classList.add("go");
+  }
+  function bigBang(){
+    el("cerFlash").classList.remove("go"); void el("cerFlash").offsetWidth; el("cerFlash").classList.add("go");
+    el("cerRays").classList.add("go");
+    const o=el("cerOverlay"); o.classList.remove("shake"); void o.offsetWidth; o.classList.add("shake");
+    setTimeout(()=>o.classList.remove("shake"), 700);
+    ["pod1","pod2"].forEach(id=>{ const b=el(id).querySelector(".pod-blk"); if(b){ b.classList.remove("burst"); void b.offsetWidth; b.classList.add("burst"); } });
   }
   function closeCer(){
     abort=true; running=false;
     const o=el("cerOverlay");
-    o.classList.remove("on"); el("cerConf").classList.remove("go"); el("cerConf").innerHTML="";
+    o.classList.remove("on","shake"); el("cerConf").classList.remove("go"); el("cerConf").innerHTML="";
+    el("cerRays").classList.remove("go"); el("cerFlash").classList.remove("go");
     el("cerStage").classList.remove("beat");
     const v=el("cerVig"); if(v){ v.classList.remove("beat"); v.style.opacity="0"; }
     zoomReset();
     document.body.style.overflow="";
+    if(chain){ chain=false; setTimeout(()=>{ try{ maybeShowOpeningPopup(); }catch(e){} }, 500); }
   }
   window.closeChampionCeremony = closeCer;
 
-  window.showChampionCeremony = async function(){
+  window.showChampionCeremony = async function(opts){
     if(running) return;
+    chain = !!(opts && opts.chain);      // otomatik açılışta: tören bitince özet kartı gelsin
     const rows = buildLeaderboard();
     if(rows.length < 3) return;
     running=true; abort=false;
@@ -4134,6 +4164,8 @@ boot();
     el("cerPodium").classList.remove("on");
     ["pod1","pod2","pod3"].forEach(p=>el(p).innerHTML="");
     el("cerTitle").classList.remove("on"); el("cerTitle").innerHTML="";
+    el("cerRays").classList.remove("go"); el("cerFlash").classList.remove("go");
+    el("cerOverlay").classList.remove("shake");
     el("cerCount").classList.remove("tick"); el("cerCount").textContent="";
     el("cerSkip").classList.remove("on");
     zoomReset();
@@ -4206,17 +4238,19 @@ boot();
     el("cerVig").style.opacity="0";
 
     // ---- Faz 5: 1. + 2. aynı anda + konfeti + ŞAMPİYON ----
-    fireConfetti();
     [el("pod1"),el("pod2")].forEach(p=>{
       p.querySelectorAll("[data-e],[data-o],[data-p],[data-f],[data-n]").forEach(x=>x.classList.add("on"));
     });
-    await T(2200);                                    // yakın planda ilan
-    if(abort) return;
-    zoomReset();                                      // geri çekil, başlık gelsin
-    await T(700);
+    // konfeti + kamera geri + ŞAMPİYON — hepsi aynı anda
+    const st=el("cerStage");
+    st.style.transition="transform .5s cubic-bezier(.2,.9,.2,1)";
+    bigBang(); fireConfetti(); zoomReset();
     el("cerTitle").innerHTML=`<small>Şampiyon</small><b>${esc(champName).toUpperCase()}</b>`;
     el("cerTitle").classList.add("on");
-    await T(4600);
+    st.style.transition="";
+    await T(4200);
+    if(abort) return;
+    await runWrapped();                                // Spotify Wrapped tarzı özet
     if(abort) return;
     closeCer();
   };
@@ -4224,6 +4258,178 @@ boot();
   document.addEventListener("click", e=>{
     if(e.target.closest("#cerSkip")) closeCer();
     if(e.target.closest("[data-cer-replay]")) showChampionCeremony();
+  });
+})();
+</script>
+<style>
+/* ============ TURNUVA WRAPPED ============ */
+.wrp{position:fixed;inset:0;z-index:2100;display:none;overflow:hidden;
+  background:linear-gradient(180deg,#0a1a10 0%,#071009 100%)}
+.wrp.on{display:block}
+.wrp-bg{position:absolute;inset:0;opacity:.55;transition:background 1s ease}
+.wrp-bars{position:absolute;top:10px;left:10px;right:10px;display:flex;gap:4px;z-index:3}
+.wrp-bars i{flex:1;height:3px;border-radius:3px;background:rgba(255,255,255,.2);overflow:hidden;position:relative}
+.wrp-bars i b{position:absolute;inset:0;width:0;background:var(--gold);border-radius:3px;display:block}
+.wrp-bars i.done b{width:100%}
+.wrp-bars i.live b{animation:wrpBar linear forwards}
+@keyframes wrpBar{from{width:0}to{width:100%}}
+.wrp-stage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:52px 22px 96px;z-index:2}
+.wrp-slide{width:100%;max-width:460px;text-align:center;display:none}
+.wrp-slide.on{display:block}
+.wrp-ic{font-size:clamp(34px,10vw,52px);line-height:1;margin-bottom:10px;
+  animation:wrpPop .5s cubic-bezier(.34,1.56,.64,1) both}
+.wrp-k{font-size:clamp(11px,3vw,13px);font-weight:900;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--gold2);margin-bottom:10px;animation:wrpUp .45s ease both .05s}
+.wrp-big{font-family:'Anton',sans-serif;font-size:clamp(34px,11vw,64px);line-height:1.05;color:#fff;
+  letter-spacing:.01em;margin-bottom:8px;animation:wrpUp .5s cubic-bezier(.2,.9,.2,1) both .15s;
+  word-break:break-word}
+.wrp-big.gold{background:linear-gradient(100deg,#c99f2e,#fff3c4 50%,#c99f2e);background-size:200% 100%;
+  -webkit-background-clip:text;background-clip:text;color:transparent;animation:wrpUp .5s cubic-bezier(.2,.9,.2,1) both .15s, cerShim 3s linear infinite}
+.wrp-sub{font-size:clamp(14px,3.6vw,17px);color:#dce9e1;font-weight:700;line-height:1.5;
+  animation:wrpUp .5s ease both .3s}
+.wrp-note{font-size:12.5px;color:var(--muted);font-weight:600;margin-top:12px;line-height:1.5;
+  animation:wrpUp .5s ease both .45s}
+.wrp-chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:14px;
+  animation:wrpUp .5s ease both .4s}
+.wrp-chips span{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:999px;
+  padding:7px 13px;font-size:12.5px;font-weight:800;color:#fff}
+.wrp-chips span b{color:var(--gold2)}
+@keyframes wrpUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes wrpPop{from{opacity:0;transform:scale(.5)}to{opacity:1;transform:scale(1)}}
+.wrp-skip{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);z-index:4;
+  background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.2);color:#e9f2ec;
+  font-weight:800;font-size:12.5px;padding:10px 20px;border-radius:999px;cursor:pointer}
+.wrp-skip:hover{background:rgba(255,255,255,.17)}
+.wrp-tap{position:absolute;inset:0;z-index:1;cursor:pointer}
+@media (prefers-reduced-motion: reduce){ .wrp-ic,.wrp-k,.wrp-big,.wrp-sub,.wrp-note,.wrp-chips{animation:none} }
+</style>
+
+<div class="wrp" id="wrpOverlay" aria-hidden="true">
+  <div class="wrp-bg" id="wrpBg"></div>
+  <div class="wrp-tap" id="wrpTap"></div>
+  <div class="wrp-bars" id="wrpBars"></div>
+  <div class="wrp-stage"><div class="wrp-slide on" id="wrpSlide"></div></div>
+  <button class="wrp-skip" id="wrpSkip">Siteye gir →</button>
+</div>
+
+<script>
+(function(){
+  const el=id=>document.getElementById(id);
+  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+  let wAbort=false, wNext=null;
+
+  // --- ek istatistikler ---
+  function extraStats(uid){
+    const bm={}; predsAll.forEach(p=>{ if(p.user_id===uid) bm[p.match_id]=p; });
+    const fin=matches.filter(m=>m.finished && m.home_score!=null && new Date(m.kickoff)>=CUTOFF)
+      .sort((a,b)=> new Date(a.kickoff)-new Date(b.kickoff));
+    let streak=0, cur=0, gp=0, ga=0;
+    const freq={}, byStage={};
+    fin.forEach(m=>{
+      const pr=bm[m.id]; const g=grade(pr||null,m);
+      if(g && g.pts>0){ cur++; if(cur>streak) streak=cur; } else cur=0;
+      if(pr){
+        gp+=pr.home+pr.away; ga+=m.home_score+m.away_score;
+        const k=`${pr.home}-${pr.away}`; freq[k]=(freq[k]||0)+1;
+      }
+      if(g) byStage[m.stage]=(byStage[m.stage]||0)+g.pts;
+    });
+    let favSc=null, favN=0;
+    Object.keys(freq).forEach(k=>{ if(freq[k]>favN){ favN=freq[k]; favSc=k; } });
+    let bestStage=null, bestPts=0;
+    Object.keys(byStage).forEach(k=>{ if(byStage[k]>bestPts){ bestPts=byStage[k]; bestStage=k; } });
+    return {streak, favSc, favN, goalsPred:gp, goalsReal:ga, bestStage, bestPts};
+  }
+
+  const TONES=[
+    "radial-gradient(90% 70% at 50% 30%, rgba(212,175,55,.28), transparent 70%)",
+    "radial-gradient(90% 70% at 30% 60%, rgba(70,182,255,.22), transparent 70%)",
+    "radial-gradient(90% 70% at 70% 40%, rgba(43,213,117,.22), transparent 70%)",
+    "radial-gradient(90% 70% at 50% 70%, rgba(255,120,80,.20), transparent 70%)",
+    "radial-gradient(90% 70% at 40% 30%, rgba(180,120,255,.22), transparent 70%)"
+  ];
+
+  function buildSlides(w, x){
+    const medal = w.rank===1?"🥇":w.rank===2?"🥈":w.rank===3?"🥉":"🏁";
+    const S=[];
+    S.push({ic:"✨", k:"Turnuva bitti", big:"İşte Turnuva Özetin", sub:esc(w.prof.username), dur:3000});
+    S.push({ic:medal, k:"Bitiriş sıran", big:`${w.rank}.`, sub:`${w.total} oyuncu arasında`, dur:3000});
+    S.push({ic:"⚡", k:"Toplam puanın", big:w.pts.toLocaleString("tr-TR"), gold:1,
+            sub:`${w.picks} tahmin yaptın`, dur:3000});
+    S.push({ic:"🎯", k:"İsabetin", big:`${w.exactCnt} tam skor`,
+            sub:`ve ${w.outcCnt} doğru sonuç`, dur:3000});
+    if(x.streak>1) S.push({ic:"🔥", k:"En uzun serin", big:`${x.streak} maç`,
+            sub:"üst üste puan aldın", dur:2900});
+    if(x.favSc) S.push({ic:"🎲", k:"Favori skorun", big:x.favSc, sub:`${x.favN} kez bu skoru yazdın`, dur:2900});
+    if(x.goalsPred) S.push({ic:"⚽", k:"Gol tahminin", big:`${x.goalsPred} gol`,
+            sub:`sahada ${x.goalsReal} gol atıldı`,
+            note: x.goalsPred>x.goalsReal?"Sen sahadan daha hücumcuymuşsun 😄":(x.goalsPred<x.goalsReal?"Sahadakiler senden cömert çıktı":"Tam isabet!"), dur:3000});
+    if(x.bestStage) S.push({ic:"📈", k:"En verimli turun", big:esc(STAGE_LABEL[x.bestStage]||x.bestStage),
+            sub:`${x.bestPts.toLocaleString("tr-TR")} puan topladın`, dur:2900});
+    S.push({ic:"🏔️", k:"Zirven", big:`${w.peak}. sıra`, sub:"turnuva boyunca çıktığın en yüksek yer", dur:2900});
+    if(w.best) S.push({ic:"⭐", k:"En iyi anın", big:`+${w.best.pts}`, gold:1,
+            sub:`${esc(trName(w.best.m.team_home))} ${w.best.m.home_score}-${w.best.m.away_score} ${esc(trName(w.best.m.team_away))}`,
+            note:`Tahminin: ${w.best.pred.home}-${w.best.pred.away}`, dur:3400});
+    if(w.worst) S.push({ic:"😬", k:"En zor anın", big:`${esc(trName(w.worst.m.team_home))} ${w.worst.m.home_score}-${w.worst.m.away_score} ${esc(trName(w.worst.m.team_away))}`,
+            sub:`Sen ${w.worst.pred.home}-${w.worst.pred.away} demiştin`,
+            note:`${w.worst.others} kişi bu maçı bildi`, dur:3400});
+    if(w.champion) S.push({ic:w.champHit?"🏆":"🎯", k:"Şampiyon tahminin",
+            big:esc(trName(w.champion)), gold:w.champHit?1:0,
+            sub:w.champHit?`Tuttu! +${w.champPts} puan`:"Bu sefer olmadı", dur:3200});
+    if(w.sidePts) S.push({ic:"🎲", k:"Final yan tahminleri", big:`+${w.sidePts}`, sub:"ekstra puan", dur:2700});
+    S.push({ic:w.badge.ic, k:"Tipin", big:esc(w.badge.name), gold:1, sub:esc(w.badge.desc), dur:3400});
+    S.push({ic:"🏆", k:"Dünya Kupası 2026", big:"Görüşmek üzere!", sub:"Tahmin Ligi · 56 maç · 8 oyuncu",
+            note:"Sıralamayı Lider Tablosu'ndan tekrar görebilirsin", dur:3600});
+    return S;
+  }
+
+  function slideHTML(s){
+    return `<div class="wrp-ic">${s.ic}</div>
+      <div class="wrp-k">${s.k}</div>
+      <div class="wrp-big${s.gold?' gold':''}">${s.big}</div>
+      ${s.sub?`<div class="wrp-sub">${s.sub}</div>`:""}
+      ${s.note?`<div class="wrp-note">${s.note}</div>`:""}`;
+  }
+  function closeWrp(){
+    wAbort=true;
+    el("wrpOverlay").classList.remove("on");
+    document.body.style.overflow="";
+  }
+  window.closeWrapped = closeWrp;
+
+  window.runWrapped = async function(){
+    const w = (typeof buildWrap==="function") ? buildWrap(session.user.id) : null;
+    if(!w) return;
+    const x = extraStats(session.user.id);
+    const S = buildSlides(w, x);
+    wAbort=false;
+    el("wrpBars").innerHTML=S.map(()=>`<i><b></b></i>`).join("");
+    el("wrpOverlay").classList.add("on");
+    document.body.style.overflow="hidden";
+    const bars=[...el("wrpBars").children];
+    for(let i=0;i<S.length;i++){
+      if(wAbort) return;
+      const s=S[i];
+      el("wrpBg").style.background=TONES[i%TONES.length];
+      const box=el("wrpSlide");
+      box.innerHTML=slideHTML(s);
+      bars.forEach((b,j)=>{ b.classList.toggle("done", j<i); b.classList.remove("live"); });
+      const bar=bars[i]; bar.classList.add("live");
+      bar.querySelector("b").style.animationDuration=s.dur+"ms";
+      // slayt süresi veya tıklama
+      await new Promise(res=>{
+        let done=false;
+        const fin=()=>{ if(done) return; done=true; wNext=null; clearTimeout(tm); res(); };
+        const tm=setTimeout(fin, s.dur);
+        wNext=fin;
+      });
+    }
+    if(!wAbort){ el("wrpOverlay").classList.remove("on"); document.body.style.overflow=""; }
+  };
+
+  document.addEventListener("click", e=>{
+    if(e.target.closest("#wrpSkip")){ closeWrp(); if(typeof closeChampionCeremony==="function") closeChampionCeremony(); return; }
+    if(e.target.closest("#wrpTap") && wNext) wNext();
   });
 })();
 </script>
