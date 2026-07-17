@@ -2166,7 +2166,7 @@ function exactPtsFor(m, pred){
   }
   return sc.exact;
 }
-// 100.000 simülasyon pahalı — veri değişmedikçe tekrar hesaplama
+// Simülasyon pahalı — veri değişmedikçe tekrar hesaplama
 let _wcCache=null, _wcKey="";
 function winChanceKey(){
   let mk=""; for(const m of matches) mk+=`${m.id},${m.home_score},${m.away_score},${m.finished?1:0},${m.team_home||""},${m.team_away||""};`;
@@ -2309,7 +2309,7 @@ function renderWinChance(){
       <td>${r.form}</td>
       <td>${r.oneSide}</td>
       <td>${r.goals}/${r.off1}</td>
-      <td class="wc-sim${r.winsR===0&&r.canWin?' rare':''}" ${r.winsR===0?`title="${r.canWin?'Mümkün ama çok nadir — 3.000 denemede denk gelmedi':'Matematiksel olarak birinci olamaz'}"`:''}>${r.winsR>0?r.winsR:(r.canWin?"&lt;1":"0")}</td>
+      <td class="wc-sim${r.winsR===0&&r.canWin?' rare':''}" ${r.winsR===0?`title="${r.canWin?`Mümkün ama çok nadir — ${MC_N.toLocaleString("tr-TR")} denemede denk gelmedi`:'Matematiksel olarak birinci olamaz'}"`:''}>${r.winsR>0?r.winsR:(r.canWin?"&lt;1":"0")}</td>
       <td class="wc-pct"><div class="wc-bar" style="width:${Math.min(100,r.prob).toFixed(1)}%"></div><span>%${r.prob.toFixed(1)}</span></td>
     </tr>`).join("");
   box.innerHTML=`
