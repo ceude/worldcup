@@ -3808,8 +3808,7 @@ function renderLeaderboardTab(){
   const box=$("#tab-leaderboard");
   if(!box) return;
   if(!rows.length){ box.innerHTML=`<div class="empty">Henüz oyuncu yok.</div>`; return; }
-  const cerBtn = (appConfig.champion_winner || (me&&me.is_admin))
-    ? `<button class="seeall cer-replay" data-cer-replay>🏅 Sıralama ilanını gör</button>` : "";
+  const cerBtn = `<button class="seeall cer-replay" data-cer-replay>🏅 Sıralama ilanını gör (TEST)</button>`;
   box.innerHTML=cerBtn+`<div class="lb-hint tabhint">Kişilere tıklayarak biten maçlardaki tahminlerini görebilirsiniz. Canlı sonuçlar puanları anlık değiştirir; kesin puan maç bitince belli olur.
     <div class="lb-remain">${remainInfoHTML()}</div></div>`+
     (lbHasLive?`<div class="lb-livestrip" style="margin-bottom:10px"><span class="livedot"></span>CANLI — puanlar maç bitene kadar geçici</div>`:"")+
@@ -4398,9 +4397,13 @@ boot();
   window.closeWrapped = closeWrp;
 
   window.runWrapped = async function(){
-    const w = (typeof buildWrap==="function") ? buildWrap(session.user.id) : null;
+    let uid=session.user.id;
+    let w = (typeof buildWrap==="function") ? buildWrap(uid) : null;
+    if(!w && me && me.is_admin){                       // admin lider tablosunda yok → 1.'nin özeti
+      const rr=buildLeaderboard(); if(rr.length){ uid=rr[0].id; w=buildWrap(uid); }
+    }
     if(!w) return;
-    const x = extraStats(session.user.id);
+    const x = extraStats(uid);
     const S = buildSlides(w, x);
     wAbort=false;
     el("wrpBars").innerHTML=S.map(()=>`<i><b></b></i>`).join("");
