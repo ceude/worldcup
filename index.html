@@ -430,6 +430,13 @@ nav.tabs button:hover{color:var(--ink)}
 .mcp-row.top .mcp-pct{color:#ffe27a}
 .mcp-foot{font-size:10px;color:var(--muted);line-height:1.4;margin-bottom:10px}
 .mcp-foot b{color:var(--ink)}
+.mcs-head{font-size:11px;font-weight:900;color:var(--gold2);margin:4px 0 7px;letter-spacing:.2px}
+.mcs-list{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;max-height:180px;overflow-y:auto}
+.mcs-row{background:#0f1e16;border:1px solid var(--line);border-radius:9px;padding:7px 10px}
+.mcs-nm{font-size:12px;font-weight:900;color:#fff;margin-bottom:3px;display:flex;justify-content:space-between;gap:8px}
+.mcs-nm span{color:var(--gold2)}
+.mcs-sc{font-size:11px;color:#cfe0d5;line-height:1.5}
+.mcs-sc b{color:var(--gold2)}
 .mcp-btn{padding:11px !important;font-size:14px !important}
 .wc-table tr.top .wc-sim{color:var(--ink)}
 .wc-bar{position:absolute;left:0;top:3px;bottom:3px;border-radius:6px;
@@ -2226,26 +2233,36 @@ function computeWinChanceRaw(){
     ms: remaining.map(m=>{
       const pred=(predByUser[r.uid]||{})[m.id]||null;
       const Ex=exactPtsFor(m,pred);
-      return {E:Ex, O:scoringFor(m.stage).outc, qEx:0.35*pSurprise(Ex)};
+      // sonucu bilirse tam skoru da tutturma şansı sabit (~%42); büyük sürpriz şansı AZALTMAZ
+      return {E:Ex, O:scoringFor(m.stage).outc, qEx:0.42};
     })
   }));
   const champTeams=Object.keys(cprob).filter(t=>cprob[t]>0);
-  const N=MC_N, wins={}; rows.forEach(r=>wins[r.uid]=0);
+  const N=MC_N;
+  // Lideri (mevcut 1.) referans al: herkes "onu geçer mi" diye ölçülür
+  const leaderIdx = rows.reduce((bi,r,i,a)=> r.P>a[bi].P?i:bi, 0);
+  const leaderUid = rows[leaderIdx].uid;
+  const beats={}; rows.forEach(r=>beats[r.uid]=0);   // lideri geçme sayısı
+  const wins={}; rows.forEach(r=>wins[r.uid]=0);     // (bilgi amaçlı) simülasyonu 1. bitirme
   for(let s=0;s<N;s++){
     let champ=null;
     if(champTeams.length){ const x=Math.random(); let acc=0;
       for(const t of champTeams){ acc+=cprob[t]; if(x<=acc){ champ=t; break; } } }
-    let best=-1, winners=[];
+    const pts={}; let best=-1, winners=[];
     for(const p of setup){
-      let pts=p.base;
+      let v=p.base;
       for(const mm of p.ms){
-        if(Math.random()<p.pOut) pts += (Math.random()<mm.qEx) ? mm.E : mm.O;
+        // sonucu bilirse puan alır; sürpriz skor şansı puan büyüklüğüne göre AZALMAZ
+        if(Math.random()<p.pOut) v += (Math.random()<mm.qEx) ? mm.E : mm.O;
       }
-      if(champ && p.champion===champ) pts += CHAMPION_POINTS[champ]||0;
-      if(pts>best){ best=pts; winners=[p.uid]; }
-      else if(pts===best) winners.push(p.uid);
+      if(champ && p.champion===champ) v += CHAMPION_POINTS[champ]||0;
+      pts[p.uid]=v;
+      if(v>best){ best=v; winners=[p.uid]; } else if(v===best) winners.push(p.uid);
     }
     for(const u of winners) wins[u]+=1/winners.length;
+    // lideri geçen (eşitlikte geçmiş sayılmaz) herkesi say
+    const lp=pts[leaderUid];
+    for(const p of setup){ if(p.uid!==leaderUid && pts[p.uid]>lp) beats[p.uid]+=1; }
   }
   rows.forEach(r=>{ r.mc=wins[r.uid]/N; r.wins=wins[r.uid]; });
   // Matematiksel olarak hâlâ birinci olabilir mi? (kendi tahminlerinin tavanı vs liderin mevcut puanı)
@@ -2255,14 +2272,19 @@ function computeWinChanceRaw(){
     rows[i].ceilSim = p.base + p.ms.reduce((s,mm)=>s+mm.E,0) + cmax;
     rows[i].canWin = rows[i].ceilSim >= leaderP;
   });
-  // --- 3) Sonuç: %100 simülasyon ---
-  rows.forEach(r=>{ r.prob=r.mc*100; });
-  rows.sort((a,b)=> b.prob-a.prob || (b.canWin?1:0)-(a.canWin?1:0) || b.P-a.P);
-  // Kazanma adetleri: yuvarlanınca toplam tam N olsun
-  const rw=rows.map(r=>Math.round(r.wins));
-  const diff=N-rw.reduce((a,b)=>a+b,0);
-  rows.forEach((r,i)=>{ r.winsR=rw[i]; });
-  if(rows.length) rows[0].winsR=Math.max(0, rows[0].winsR+diff);
+  // --- 3) Sonuç: "mevcut lideri geçme" olasılığı (şampiyon gibi sunulur) ---
+  rows.forEach(r=>{
+    if(r.uid===leaderUid) r.prob=null;                 // lider: aşağıda 100 - diğerleri
+    else r.prob = beats[r.uid]/N*100;
+    r.beatsR = beats[r.uid];
+  });
+  const othersSum = rows.reduce((s,r)=> s + (r.uid===leaderUid?0:r.prob), 0);
+  const leaderRow = rows.find(r=>r.uid===leaderUid);
+  if(leaderRow) leaderRow.prob = Math.max(0, 100 - othersSum);
+  // lider her zaman en üstte, sonra geçme olasılığına göre
+  rows.sort((a,b)=> (b.uid===leaderUid?1:0)-(a.uid===leaderUid?1:0) || b.prob-a.prob || (b.canWin?1:0)-(a.canWin?1:0) || b.P-a.P);
+  // Kazanma adetleri (Sim sütunu): lider hariç lideri geçme sayısı; lider için boş
+  rows.forEach(r=>{ r.winsR = (r.uid===leaderUid) ? null : Math.round(r.beatsR); });
   return rows;
 }
 // Monte Carlo sonuçları — oturumda bir kez, her şeyin önünde
@@ -2274,10 +2296,32 @@ function mcPopWindowOpen(){
   return now() < new Date(new Date(fm.kickoff).getTime() - 6*3600*1000);
 }
 function markMcPopSeen(){ try{ sessionStorage.setItem("wcMcPop","1"); }catch(e){} }
+// Bir oyuncunun lideri geçmesi için gereken örnek skorlar (mümkünse)
+function winningScenario(uid, leader){
+  if(!leader || leader.uid===uid) return null;
+  const me=profiles.find(p=>p.id===uid); if(!me) return null;
+  const myP=userTotals(uid).pts;
+  const cprob=championProbs();
+  const remaining=matches.filter(m=> !m.finished && !isInPlay(m))
+    .sort((a,b)=> new Date(a.kickoff)-new Date(b.kickoff));
+  const predByU={}; predsAll.forEach(p=>{ if(p.user_id===uid) predByU[p.match_id]=p; });
+  let gain=0; const parts=[];
+  remaining.forEach(m=>{
+    const pr=predByU[m.id];
+    if(pr){ const pts=exactPtsFor(m,pr); gain+=pts;
+      parts.push(`${esc(trName(m.team_home)||'?')} ${pr.home}-${pr.away} ${esc(trName(m.team_away)||'?')} <b>+${pts}</b>`); }
+  });
+  const myChampAlive = me.champion && (cprob[me.champion]||0)>0;
+  const myChampPts = myChampAlive ? (CHAMPION_POINTS[me.champion]||0) : 0;
+  const myMax = myP + gain + myChampPts;
+  if(myMax <= (leader.P||0)) return {possible:false};
+  return {possible:true, parts, champ: myChampAlive?{name:trName(me.champion),pts:myChampPts}:null};
+}
 function showMcPopup(){
   const rows=computeWinChance(); if(!rows.length) return;
+  const leader=rows.find(r=>r.winsR==null) || rows[0];
   const list=rows.map((r,i)=>{
-    const simTxt = r.winsR>0 ? r.winsR.toLocaleString("tr-TR") : (r.canWin?"&lt;1":"0");
+    const simTxt = r.winsR==null?'👑':(r.winsR>0 ? r.winsR.toLocaleString("tr-TR") : (r.canWin?"&lt;1":"0"));
     return `<div class="mcp-row${i===0?' top':''}">
       <span class="mcp-rank">${i+1}</span>
       <span class="mcp-av">${avatarInner(r.username,r.fav)}</span>
@@ -2286,18 +2330,33 @@ function showMcPopup(){
       <span class="mcp-pct">${pctTxt(r)}</span>
     </div>`;
   }).join("");
+  // Geçmek için gereken örnek skorlar (lider hariç, sadece mümkün olanlar)
+  const scen=rows.filter(r=>r.uid!==leader.uid).map(r=>{
+    const w=winningScenario(r.uid, leader);
+    if(!w || !w.possible) return "";
+    const champTxt = w.champ ? ` · şampiyon <b>${esc(w.champ.name)}</b> +${w.champ.pts}` : "";
+    return `<div class="mcs-row">
+      <div class="mcs-nm">${esc(r.username)}${r.uid===session.user.id?' (sen)':''} <span>${pctTxt(r)}</span></div>
+      <div class="mcs-sc">${w.parts.join(" · ")}${champTxt}</div>
+    </div>`;
+  }).filter(Boolean).join("");
+  const scenBlock = scen ? `
+    <div class="mcs-head">🎯 Lideri (${esc(leader.username)}) geçmek için — örnek skorlar</div>
+    <div class="mcs-list">${scen}</div>` : "";
   showPopup(`
     <button class="x" id="popupClose">✕</button>
     <h3 class="pop-h mcp-h">🎲 Şampiyonluk Simülasyonu</h3>
-    <p class="mcp-lead">Turnuvanın kalanı <b>Monte Carlo</b> ile <b>${MC_N.toLocaleString("tr-TR")} kez</b> oynatıldı — kim kaç kez şampiyon oldu:</p>
-    <div class="mcp-head"><span>Oyuncu</span><span>Kazandı</span><span>Olasılık</span></div>
+    <p class="mcp-lead">Turnuvanın kalanı <b>Monte Carlo</b> ile <b>${MC_N.toLocaleString("tr-TR")} kez</b> oynatıldı. Yüzde, <b>${esc(leader.username)}</b>'ı geçip şampiyon olma olasılığı:</p>
+    <div class="mcp-head"><span>Oyuncu</span><span>Geçti</span><span>Olasılık</span></div>
     <div class="mcp-list">${list}</div>
-    <div class="mcp-foot"><b>&lt;1</b>: mümkün ama çok nadir · Detay: <b>Kazanma %</b> sekmesi</div>
+    ${scenBlock}
+    <div class="mcp-foot">👑 mevcut lider · <b>&lt;1</b>: mümkün ama çok nadir · Detay: <b>Kazanma %</b> sekmesi</div>
     <button class="pop-btn mcp-btn" id="popupClose2" style="background:linear-gradient(135deg,var(--gold),var(--gold2));color:#151007">Anladım 🎲</button>`);
 }
 const MC_N=250000;
 // Yüzde metni: >=1 → tek ondalık; <1 → ilk sıfır olmayan basamak görünene kadar (max 6 ondalık)
 function pctTxt(r){
+  if(r.prob==null) return "%—";
   const p=r.prob;
   if(p>=1) return "%"+p.toFixed(1);
   if(p>0){ for(let d=1;d<=6;d++){ const v=p.toFixed(d); if(parseFloat(v)>0) return "%"+v; } }
@@ -2317,11 +2376,11 @@ function renderWinChance(){
       <td>${r.form}</td>
       <td>${r.oneSide}</td>
       <td>${r.goals}/${r.off1}</td>
-      <td class="wc-sim${r.winsR===0&&r.canWin?' rare':''}" ${r.winsR===0?`title="${r.canWin?`Mümkün ama çok nadir — ${MC_N.toLocaleString("tr-TR")} denemede denk gelmedi`:'Matematiksel olarak birinci olamaz'}"`:''}>${r.winsR>0?r.winsR:(r.canWin?"&lt;1":"0")}</td>
+      <td class="wc-sim${r.winsR===0&&r.canWin?' rare':''}" ${r.winsR===0?`title="${r.canWin?`Mümkün ama çok nadir — ${MC_N.toLocaleString("tr-TR")} denemede denk gelmedi`:'Matematiksel olarak lideri geçemez'}"`:''}>${r.winsR==null?'👑':(r.winsR>0?r.winsR.toLocaleString("tr-TR"):(r.canWin?"&lt;1":"0"))}</td>
       <td class="wc-pct"><div class="wc-bar" style="width:${Math.min(100,r.prob).toFixed(1)}%"></div><span>${pctTxt(r)}</span></td>
     </tr>`).join("");
   box.innerHTML=`
-    <div class="wc-intro">🔮 <b>Tahmini şampiyonluk olasılığı.</b> Turnuvanın kalanı <b>Monte Carlo simülasyonu</b> ile <b>${MC_N.toLocaleString("tr-TR")} kez</b> oynatılıp kazanma oranları hesaplandı. Tablodaki diğer veriler bilgi amaçlıdır. Eğlence amaçlıdır.</div>
+    <div class="wc-intro">🔮 <b>Tahmini şampiyonluk olasılığı.</b> Turnuvanın kalanı <b>Monte Carlo simülasyonu</b> ile <b>${MC_N.toLocaleString("tr-TR")} kez</b> oynatıldı. Yüzde, her oyuncunun <b>mevcut lideri geçip şampiyon olma</b> olasılığıdır. Tablodaki diğer veriler bilgi amaçlıdır. Eğlence amaçlıdır.</div>
     <div class="wc-wrap">
       <table class="wc-table">
         <thead><tr>
@@ -2336,7 +2395,7 @@ function renderWinChance(){
       <b>Puan:</b> mevcut toplam puan · <b>T/S:</b> tam skor / doğru sonuç adedi ·
       <b>Form:</b> son 10 maçtan toplanan puan · <b>Tek:</b> son 20 maçta tek tarafı doğru bilme ·
       <b>G/1F:</b> toplam golü bilme / skoru 1 farkla kaçırma ·
-      <b>Sim:</b> ${MC_N.toLocaleString("tr-TR")} simülasyonun kaçında birinci bitti (<b>&lt;1</b>: mümkün ama çok nadir)
+      <b>Sim:</b> ${MC_N.toLocaleString("tr-TR")} simülasyonun kaçında lideri geçti (👑: mevcut lider · <b>&lt;1</b>: mümkün ama çok nadir)
     </div>`;
 }
 function remainInfoHTML(){
