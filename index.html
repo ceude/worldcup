@@ -437,6 +437,7 @@ nav.tabs button:hover{color:var(--ink)}
 .mcs-nm span{color:var(--gold2)}
 .mcs-sc{font-size:11px;color:#cfe0d5;line-height:1.5}
 .mcs-sc b{color:var(--gold2)}
+.mcs-dim{color:var(--muted)}
 .mcp-btn{padding:11px !important;font-size:14px !important}
 .wc-table tr.top .wc-sim{color:var(--ink)}
 .wc-bar{position:absolute;left:0;top:3px;bottom:3px;border-radius:6px;
@@ -2232,8 +2233,15 @@ function computeWinChanceRaw(){
     uid:r.uid, base:r.P, pOut:r.pOut, champion:r.champion,
     ms: remaining.map(m=>{
       const pred=(predByUser[r.uid]||{})[m.id]||null;
-      const Ex=exactPtsFor(m,pred);
-      // sonucu bilirse tam skoru da tutturma şansı sabit (~%42); büyük sürpriz şansı AZALTMAZ
+      // Final tahmini değişebilir → kimsenin yazdığı skora BAKMA; herkes için eşit potansiyel kullan.
+      // Dinamik turlarda "iyi bir tam skor" potansiyeli (orta-üst sürpriz), sabit turlarda normal exact.
+      let Ex;
+      if(DYNAMIC_STAGES.has(m.stage) && oddsOf(m)){
+        const base=STAGE_BASE_BONUS[m.stage]||90;
+        Ex = scoringFor(m.stage).outc + Math.round((base + DYN_CAP)/2);  // ort. potansiyel bonus
+      } else {
+        Ex = pred ? exactPtsFor(m,pred) : scoringFor(m.stage).exact;
+      }
       return {E:Ex, O:scoringFor(m.stage).outc, qEx:0.42};
     })
   }));
@@ -2296,7 +2304,7 @@ function mcPopWindowOpen(){
   return now() < new Date(new Date(fm.kickoff).getTime() - 6*3600*1000);
 }
 function markMcPopSeen(){ try{ sessionStorage.setItem("wcMcPop","1"); }catch(e){} }
-// Bir oyuncunun lideri geçmesi için gereken örnek skorlar (mümkünse)
+// Bir oyuncunun lideri geçmesi için gereken örnek skorlar (tahminlerine bakmadan)
 function winningScenario(uid, leader){
   if(!leader || leader.uid===uid) return null;
   const me=profiles.find(p=>p.id===uid); if(!me) return null;
@@ -2304,17 +2312,29 @@ function winningScenario(uid, leader){
   const cprob=championProbs();
   const remaining=matches.filter(m=> !m.finished && !isInPlay(m))
     .sort((a,b)=> new Date(a.kickoff)-new Date(b.kickoff));
-  const predByU={}; predsAll.forEach(p=>{ if(p.user_id===uid) predByU[p.match_id]=p; });
-  let gain=0; const parts=[];
-  remaining.forEach(m=>{
-    const pr=predByU[m.id];
-    if(pr){ const pts=exactPtsFor(m,pr); gain+=pts;
-      parts.push(`${esc(trName(m.team_home)||'?')} ${pr.home}-${pr.away} ${esc(trName(m.team_away)||'?')} <b>+${pts}</b>`); }
-  });
   const myChampAlive = me.champion && (cprob[me.champion]||0)>0;
   const myChampPts = myChampAlive ? (CHAMPION_POINTS[me.champion]||0) : 0;
-  const myMax = myP + gain + myChampPts;
-  if(myMax <= (leader.P||0)) return {possible:false};
+  // Liderin muhtemel ek puanı: şampiyonu hayattaysa onu da alabileceğini varsay (en zorlu durum)
+  const leaderChampAlive = leader.champion && (cprob[leader.champion]||0)>0;
+  const need = (leader.P||0) + (leaderChampAlive?(CHAMPION_POINTS[leader.champion]||0):0) - myP - myChampPts + 1;
+  // Her kalan maçta alınabilecek EN YÜKSEK puanla topla (tam skoru tutturmak)
+  let gain=0; const slots=[];
+  remaining.forEach(m=>{
+    const top = DYNAMIC_STAGES.has(m.stage) ? (scoringFor(m.stage).outc + DYN_OTHER) : scoringFor(m.stage).exact;
+    slots.push({m, top}); gain+=top;
+  });
+  if(gain < need) return {possible:false};
+  // Gereken puanı karşılayacak kadar maçta "sürpriz tam skor", gerisinde "doğru sonuç" öner
+  let acc=0; const parts=[];
+  for(const sl of slots){
+    const home=trName(sl.m.team_home)||'?', away=trName(sl.m.team_away)||'?';
+    if(acc < need){
+      acc += sl.top;
+      parts.push(`${esc(home)} <b>sürpriz tam skor</b> ${esc(away)} <b>+${sl.top}</b>`);
+    } else {
+      parts.push(`${esc(home)}–${esc(away)} <span class="mcs-dim">sonucu bil +${scoringFor(sl.m.stage).outc}</span>`);
+    }
+  }
   return {possible:true, parts, champ: myChampAlive?{name:trName(me.champion),pts:myChampPts}:null};
 }
 function showMcPopup(){
@@ -4322,4 +4342,4 @@ boot();
 })();
 </script>
 </body>
-</html>
+</html>v
