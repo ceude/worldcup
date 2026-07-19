@@ -520,18 +520,21 @@ nav.tabs button:hover{color:var(--ink)}
 .lf-sec{font-size:11px;font-weight:900;color:var(--gold2);padding:10px 14px 5px;letter-spacing:.02em}
 .lf-sec span{color:var(--muted);font-weight:600;letter-spacing:0}
 .lf-lb{padding:0 8px 4px}
-.lf-row{display:grid;grid-template-columns:20px 26px 24px 1fr auto auto;gap:6px;align-items:center;padding:5px 6px;border-radius:8px}
+.lf-row{display:grid;grid-template-columns:20px 26px 24px 1fr auto;gap:6px;align-items:center;padding:5px 6px;border-radius:8px;position:relative}
 .lf-row.top{background:rgba(212,175,55,.10)}
 .lf-rk{font-weight:900;color:var(--muted);text-align:center;font-size:12px}
 .lf-row.top .lf-rk{color:var(--gold)}
-.lf-up{color:#3fd17a;font-size:10px;font-weight:900}
-.lf-dn{color:#ff6b6b;font-size:10px;font-weight:900}
+.lf-up{color:#3fd17a;font-size:10px;font-weight:900;text-align:center}
+.lf-dn{color:#ff6b6b;font-size:10px;font-weight:900;text-align:center}
 .lf-eq{color:var(--muted);font-size:10px;text-align:center}
 .lf-av{width:24px;height:24px;border-radius:50%;overflow:hidden;display:inline-flex}
 .lf-av img{width:100%;height:100%;object-fit:cover}
-.lf-nm{font-weight:800;color:#fff;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lf-nmwrap{min-width:0}
+.lf-nm{font-weight:800;color:#fff;font-size:13px;display:flex;align-items:center;gap:4px;min-width:0}
 .lf-nm i{font-style:normal;color:var(--muted);font-weight:700;font-size:10px}
-.lf-plus{font-size:11px;font-weight:900;color:#3fd17a;background:rgba(63,209,122,.12);border-radius:5px;padding:1px 5px}
+.lf-nm .lf-champ{flex:0 0 auto}
+.lf-sub{font-size:10.5px;color:var(--muted);font-weight:700;margin-top:1px}
+.lf-sub b{color:#3fd17a}
 .lf-pt{font-family:'Anton',sans-serif;font-size:15px;color:var(--gold2);min-width:46px;text-align:right}
 .lf-preds{padding:0 10px 12px;display:flex;flex-direction:column;gap:3px}
 .lf-prow{display:grid;grid-template-columns:1fr 42px auto;gap:8px;align-items:center;padding:5px 6px;border-radius:7px;
@@ -1884,35 +1887,38 @@ function renderLiveFinal(fm){
   const preRank={}; pre.forEach((r,i)=>preRank[r.id]=i+1);
   const predByU={}; predsAll.forEach(p=>{ if(p.match_id===fm.id) predByU[p.user_id]=p; });
   const ansSign = started ? Math.sign(hs-as) : 0;
+  const cprob=championProbs();
   const lbHTML=rows.map((r,i)=>{
-    const now=i+1, was=preRank[r.id]||now, diff=was-now;
-    const mv = !started ? "" : diff>0?`<span class="lf-up">▲${diff}</span>`:diff<0?`<span class="lf-dn">▼${-diff}</span>`:`<span class="lf-eq">·</span>`;
-    const liveG = (started && r.live>0)?`<span class="lf-plus">+${r.live}</span>`:"";
+    const rank=i+1, was=preRank[r.id]||rank, diff=was-rank;
+    const arrow = (started && diff>0)?`<span class="lf-up">▲${diff}</span>`
+                : (started && diff<0)?`<span class="lf-dn">▼${-diff}</span>`
+                : `<span class="lf-eq"></span>`;
+    // isim altı: canlı (final) puanı, lider tablosundaki gibi
+    const sub = (started && r.live>0) ? `<div class="lf-sub">canlı <b>+${r.live}</b></div>` : "";
+    // şampiyon çipi (isim sağında)
+    let champ="";
+    if(r.champion){
+      const alive=(cprob[r.champion]||0)>0, cpts=alive?(CHAMPION_POINTS[r.champion]||0):0, fl=flagUrl(r.champion);
+      champ=`<span class="lf-champ${alive?'':' dead'}" title="${esc(trName(r.champion))} · ${alive?'+'+cpts:'elendi'}">${fl?`<img src="${fl}" alt="">`:''}+${cpts}</span>`;
+    }
     return `<div class="lf-row${i===0?' top':''}" data-uid="${r.id}" style="--lfi:${i}">
-      <span class="lf-rk">${now}</span>${mv||'<span class="lf-eq"></span>'}
+      <span class="lf-rk">${rank}</span>${arrow}
       <span class="lf-av">${avatarInner(r.username,r.fav)}</span>
-      <span class="lf-nm">${esc(r.username)}${r.id===session.user.id?' <i>(sen)</i>':''}</span>
-      ${liveG}<span class="lf-pt">${r.pts.toLocaleString("tr-TR")}</span>
+      <div class="lf-nmwrap"><div class="lf-nm">${esc(r.username)}${r.id===session.user.id?' <i>(sen)</i>':''}${champ}</div>${sub}</div>
+      <span class="lf-pt">${r.pts.toLocaleString("tr-TR")}</span>
     </div>`;
   }).join("");
   const players=profiles.filter(p=>!isHiddenUser(p.username));
-  const cprob=championProbs();
   const predHTML=players.map(p=>{
     const pr=predByU[p.id];
-    // şampiyon tahmini çipi (lider tablosundaki gibi)
-    let champ="";
-    if(p.champion){
-      const alive=(cprob[p.champion]||0)>0, pts=alive?(CHAMPION_POINTS[p.champion]||0):0, fl=flagUrl(p.champion);
-      champ=`<span class="lf-champ${alive?'':' dead'}" title="${esc(trName(p.champion))} · ${alive?'+'+pts:'elendi'}">${fl?`<img src="${fl}" alt="">`:''}+${pts}</span>`;
-    }
-    const nameCell=`<span class="lf-pn">${esc(p.username)}${p.id===session.user.id?' (sen)':''}${champ}</span>`;
+    const nameCell=`<span class="lf-pn">${esc(p.username)}${p.id===session.user.id?' (sen)':''}</span>`;
     if(!pr) return `<div class="lf-prow">${nameCell}<span class="lf-pp">—</span><span class="lf-ps miss">yok</span></div>`;
     let cls="wait", txt="bekliyor";
     if(started){
       const g=grade(pr, fm);
       if(pr.home===hs && pr.away===as){ cls="hit"; txt=`TAM TUTUYOR +${g?g.pts:''}`; }
       else if(Math.sign(pr.home-pr.away)===ansSign){ cls="close"; txt=`sonuç doğru +${g?g.pts:''}`; }
-      else { cls="miss"; txt="kaçırıyor"; }
+      else { cls="miss"; txt="kaçırıyor +0"; }
     }
     return `<div class="lf-prow${p.id===session.user.id?' me':''}">
       ${nameCell}
