@@ -2316,38 +2316,76 @@ function mcPopWindowOpen(){
   return now() < new Date(new Date(fm.kickoff).getTime() - 6*3600*1000);
 }
 function markMcPopSeen(){ try{ sessionStorage.setItem("wcMcPop","1"); }catch(e){} }
-// Bir oyuncunun lideri geçmesi için gereken örnek skorlar (tahminlerine bakmadan)
+// Belirli bir maç için, gereken puanı karşılayan EN UCUZ (en gerçekçi) skoru bul.
+// Oran verisi yoksa (dinamik değilse veya oranlar girilmemişse) null döner.
+function recommendScoreFor(m, neededPts){
+  if(!DYNAMIC_STAGES.has(m.stage)) return null;
+  const odds=oddsOf(m); if(!odds) return null;
+  const sc=scoringFor(m.stage);
+  let best=null;
+  Object.keys(odds).forEach(k=>{
+    const bonus=dynamicBonus(m,k); if(bonus==null) return;
+    const total=sc.outc+bonus;
+    if(total>=neededPts && (!best || total<best.total)){
+      const [h,a]=k.split("-").map(Number);
+      best={home:h, away:a, total};
+    }
+  });
+  if(!best){
+    const jackTotal=sc.outc+dynOther(m.stage);
+    if(jackTotal>=neededPts) best={home:null, away:null, total:jackTotal, other:true};
+  }
+  return best;
+}
+
 function winningScenario(uid, leader){
   if(!leader || leader.uid===uid) return null;
-  const me=profiles.find(p=>p.id===uid); if(!me) return null;
+  const meProf=profiles.find(p=>p.id===uid); if(!meProf) return null;
   const myP=userTotals(uid).pts;
   const cprob=championProbs();
+
+  // Şampiyon bonusu SADECE farklı takım seçtiysem net katkı sağlar.
+  // Aynı takımı seçtiysek (ör. ikimiz de Arjantin) o senaryoda ikimiz de kazanırız,
+  // yani fark kapanmaz — bu yüzden göstermiyoruz.
+  const myChampAlive = meProf.champion && (cprob[meProf.champion]||0)>0;
+  const myChampPts = myChampAlive ? (CHAMPION_POINTS[meProf.champion]||0) : 0;
+  const leaderChampAlive = leader.champion && (cprob[leader.champion]||0)>0;
+  const leaderChampPts = leaderChampAlive ? (CHAMPION_POINTS[leader.champion]||0) : 0;
+  const sameChampion = meProf.champion && leader.champion && meProf.champion===leader.champion;
+  const champHelps = myChampAlive && !sameChampion;
+
+  let need = (leader.P||0) - myP + 1;
+  if(leaderChampAlive) need += leaderChampPts;   // liderin kendi şampiyonu hayattaysa onu da alacağını varsay
+  if(champHelps) need -= myChampPts;             // benim şampiyonum FARKLIYSA açığı azaltır
+
   const remaining=matches.filter(m=> !m.finished && !isInPlay(m))
     .sort((a,b)=> new Date(a.kickoff)-new Date(b.kickoff));
-  const myChampAlive = me.champion && (cprob[me.champion]||0)>0;
-  const myChampPts = myChampAlive ? (CHAMPION_POINTS[me.champion]||0) : 0;
-  // Liderin muhtemel ek puanı: şampiyonu hayattaysa onu da alabileceğini varsay (en zorlu durum)
-  const leaderChampAlive = leader.champion && (cprob[leader.champion]||0)>0;
-  const need = (leader.P||0) + (leaderChampAlive?(CHAMPION_POINTS[leader.champion]||0):0) - myP - myChampPts + 1;
-  // Her kalan maçta alınabilecek EN YÜKSEK puanla topla (tam skoru tutturmak)
-  let gain=0; const slots=[];
-  remaining.forEach(m=>{
-    const top = DYNAMIC_STAGES.has(m.stage) ? (scoringFor(m.stage).outc + dynOther(m.stage)) : scoringFor(m.stage).exact;
-    slots.push({m, top}); gain+=top;
-  });
+  const slots=remaining.map(m=>({
+    m, top: DYNAMIC_STAGES.has(m.stage) ? (scoringFor(m.stage).outc + dynOther(m.stage)) : scoringFor(m.stage).exact
+  }));
+  const gain=slots.reduce((s,x)=>s+x.top,0);
   if(gain < need) return {possible:false};
-  // Gereken puanı karşılayacak kadar maçta "sürpriz tam skor", gerisinde "doğru sonuç" öner
+
   let acc=0; const parts=[];
   for(const sl of slots){
     const home=trName(sl.m.team_home)||'?', away=trName(sl.m.team_away)||'?';
     if(acc < need){
+      const remainNeed = need - acc;
+      const rec = recommendScoreFor(sl.m, remainNeed);
       acc += sl.top;
-      parts.push(`${esc(home)} <b>sürpriz tam skor</b> ${esc(away)} <b>+${sl.top}</b>`);
+      if(rec && !rec.other){
+        parts.push(`<b>${esc(home)} ${rec.home}-${rec.away} ${esc(away)}</b> oyna → en az <b>${rec.total}</b> puan getirir`);
+      } else if(rec && rec.other){
+        parts.push(`${esc(home)}–${esc(away)}: listede olmayan sürpriz bir skor tutarsa <b>${rec.total}</b> puan (en yüksek getiri)`);
+      } else {
+        parts.push(`${esc(home)}–${esc(away)}: en az <b>${remainNeed}</b> puanlık bir skor oynamalısın`);
+      }
     } else {
-      parts.push(`${esc(home)}–${esc(away)} <span class="mcs-dim">sonucu bil +${scoringFor(sl.m.stage).outc}</span>`);
+      parts.push(`${esc(home)}–${esc(away)}: sadece sonucu bilmen yeterli (+${scoringFor(sl.m.stage).outc})`);
     }
   }
-  return {possible:true, parts, champ: myChampAlive?{name:trName(me.champion),pts:myChampPts}:null};
+  return {possible:true, parts,
+          champ: champHelps ? {name:trName(meProf.champion), pts:myChampPts} : null};
 }
 function showMcPopup(){
   const rows=computeWinChance(); if(!rows.length) return;
@@ -2356,10 +2394,10 @@ function showMcPopup(){
   const isLeader = my.uid===leader.uid;
   const w = isLeader ? null : winningScenario(my.uid, leader);
   const scenBlock = (!isLeader && w && w.possible) ? `
-    <div class="mcs-head">🎯 ${esc(leader.username)}'ı geçmek için senin senaryon</div>
-    <div class="mcs-list"><div class="mcs-row">
-      <div class="mcs-sc">${w.parts.join(" · ")}${w.champ?` · şampiyon <b>${esc(w.champ.name)}</b> +${w.champ.pts}`:""}</div>
-    </div></div>` : "";
+  <div class="mcs-head">🎯 ${esc(leader.username)}'ı geçmek için senaryon</div>
+  <div class="mcs-list">${w.parts.map(p=>`<div class="mcs-row"><div class="mcs-sc">${p}</div></div>`).join("")}
+  ${w.champ ? `<div class="mcs-row"><div class="mcs-sc">Ayrıca şampiyon <b>${esc(w.champ.name)}</b> tutarsa +${w.champ.pts} puan daha (${esc(leader.username)}'ın seçtiği takımdan farklı olduğu için işine yarar)</div></div>` : ""}
+  </div>` : "";
   const lead = isLeader
     ? `<p class="mcp-lead">Şu an <b>sen liderdesin</b>. Diğerlerinin seni geçme ihtimaline göre hesaplanan şampiyonluk şansın:</p>`
     : `<p class="mcp-lead">Turnuvanın kalanı <b>Monte Carlo</b> ile <b>${MC_N.toLocaleString("tr-TR")} kez</b> senin için ayrı ayrı oynatıldı. Bu oran sadece sana özeldir — başkalarının şansını etkilemez.</p>`;
