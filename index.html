@@ -1120,7 +1120,7 @@ nav.tabs button:hover{color:var(--ink)}
         <ul>
           <li><b style="color:var(--ink)">Sonuç puanı sabit</b> (galibiyet/beraberlik doğru): Son 16'da 50, ÇF 60, YF/üçüncülük 80, final 100. Bu değişmedi.</li>
           <li><b style="color:var(--ink)">Tam skor bonusu dinamik:</b> Beklenen (favori) skorlar o turun tabanını verir (Son 16'da 90). Skor ne kadar <b style="color:var(--ink)">sürpriz/düşük ihtimalli</b> ise bonus o kadar yükselir, <b style="color:var(--ink)">en fazla 300</b>.</li>
-          <li><b style="color:var(--ink)">Listede olmayan skor</b> (iddia listesinde hiç geçmeyen çok sıra dışı skor) tutarsa: <b style="color:var(--ink)">350</b> bonus — en yüksek ödül.</li>
+          <li><b style="color:var(--ink)">Listede olmayan skor</b> (iddia listesinde hiç geçmeyen çok sıra dışı skor) tutarsa: <b style="color:var(--ink)">350</b> bonus (<b style="color:var(--ink)">finalde 450</b>) — en yüksek ödül.</li>
           <li>Yani en garantisi sonucu bilmek; ama cesur ve doğru bir sürpriz skor, tek maçta büyük fark yaratabilir.</li>
         </ul>
         <div class="note">💡 Her eleme maçının kartında <b>"⚡ Skor puanları"</b> butonu var — o maçtaki her skorun kaç puan getireceğini tabloda görürsün. Ayrıca skoru yazdığın an, kutuların altında <b>"Bu skor için: 50 + 110 = 160 puan"</b> gibi anında hesap çıkar.</div>
@@ -1448,7 +1448,8 @@ function berlinInputToUTCISO(dtLocalStr){
 const DYNAMIC_STAGES = new Set(["r16","qf","sf","third","final"]);
 const STAGE_BASE_BONUS = { r16:90, qf:100, sf:120, third:120, final:120 };
 const DYN_CAP = 300;      // en yüksek oranlı skorun bonus tavanı
-const DYN_OTHER = 350;    // listede olmayan skor (en sürpriz)
+const DYN_OTHER = 350;    // listede olmayan skor (en sürpriz) — genel
+function dynOther(stage){ return stage==="final" ? 450 : DYN_OTHER; }   // finalde daha yüksek
 const r10 = x => Math.round(x/10)*10;
 
 function parseOdds(text){
@@ -1474,7 +1475,7 @@ function dynamicBonus(m, scoreKey){
   const odds=oddsOf(m); if(!odds) return null;
   const B=STAGE_BASE_BONUS[m.stage]||90;
   const vals=Object.values(odds); const lo=Math.min(...vals), hi=Math.max(...vals);
-  if(!(scoreKey in odds)) return DYN_OTHER;     // listede yok → en yüksek
+  if(!(scoreKey in odds)) return dynOther(m.stage);   // listede yok → en yüksek (finalde 450)
   if(hi<=lo) return B;
   return r10(B + (odds[scoreKey]-lo)/(hi-lo)*(DYN_CAP-B));
 }
@@ -1709,7 +1710,7 @@ function renderStageInfo(){
       <div class="dyn-head"><span class="dyn-dot"></span>YENİ: DİNAMİK SKOR PUANLAMASI ⚡</div>
       <div>🎯 ${phrase} <b>sonucu</b> (galibiyet/beraberlik) bilmek <b>${sc.outc} puan</b>.
       <b>Tam skoru</b> bilmek ise artık sabit değil: skorun <b>iddia oranına</b> göre değişir.
-      Beklenen skorlar <b>${sc.outc}+${base}</b> puan; ne kadar <b>sürpriz</b> skor, o kadar yüksek (tam skor bonusu <b>en fazla ${DYN_CAP}</b>, listede olmayan skor <b>${DYN_OTHER}</b>).</div>
+      Beklenen skorlar <b>${sc.outc}+${base}</b> puan; ne kadar <b>sürpriz</b> skor, o kadar yüksek (tam skor bonusu <b>en fazla ${DYN_CAP}</b>, listede olmayan skor <b>${dynOther(curStage)}</b>).</div>
       <div class="sub">⚡ Her maç kartındaki <b>"Skor puanları"</b> butonundan o maçın tüm skor puanlarını görebilir; skoru yazınca kazanacağın puanı anında görürsün.</div>
       <div class="sub">⏱️ Tüm tahminler 90 dakikalık normal süre sonucuna göredir; uzatma/penaltı sayılmaz.</div>
     </div>`;
@@ -2232,15 +2233,13 @@ function computeWinChanceRaw(){
   const setup=rows.map(r=>({
     uid:r.uid, base:r.P, pOut:r.pOut, champion:r.champion,
     ms: remaining.map(m=>{
-      const pred=(predByUser[r.uid]||{})[m.id]||null;
-      // Final tahmini değişebilir → kimsenin yazdığı skora BAKMA; herkes için eşit potansiyel kullan.
-      // Dinamik turlarda "iyi bir tam skor" potansiyeli (orta-üst sürpriz), sabit turlarda normal exact.
+      // Final/eleme tahmini değişebilir → kimsenin yazdığı skora BAKMA; herkese EŞİT potansiyel ver.
       let Ex;
-      if(DYNAMIC_STAGES.has(m.stage) && oddsOf(m)){
+      if(DYNAMIC_STAGES.has(m.stage)){
         const base=STAGE_BASE_BONUS[m.stage]||90;
-        Ex = scoringFor(m.stage).outc + Math.round((base + DYN_CAP)/2);  // ort. potansiyel bonus
+        Ex = scoringFor(m.stage).outc + Math.round((base + DYN_CAP)/2);  // ort. sürpriz potansiyeli
       } else {
-        Ex = pred ? exactPtsFor(m,pred) : scoringFor(m.stage).exact;
+        Ex = scoringFor(m.stage).exact;
       }
       return {E:Ex, O:scoringFor(m.stage).outc, qEx:0.42};
     })
@@ -2320,7 +2319,7 @@ function winningScenario(uid, leader){
   // Her kalan maçta alınabilecek EN YÜKSEK puanla topla (tam skoru tutturmak)
   let gain=0; const slots=[];
   remaining.forEach(m=>{
-    const top = DYNAMIC_STAGES.has(m.stage) ? (scoringFor(m.stage).outc + DYN_OTHER) : scoringFor(m.stage).exact;
+    const top = DYNAMIC_STAGES.has(m.stage) ? (scoringFor(m.stage).outc + dynOther(m.stage)) : scoringFor(m.stage).exact;
     slots.push({m, top}); gain+=top;
   });
   if(gain < need) return {possible:false};
@@ -2778,11 +2777,11 @@ function paidSet(){
   try{ return new Set(JSON.parse(appConfig.paid_users||"[]")); }catch(e){ return new Set(); }
 }
 function maybeShowOpeningPopup(){
-  // 0) EN ÖNCE: Monte Carlo şampiyonluk simülasyonu (oturumda bir kez)
-  if(me && mcPopWindowOpen() && !mcPopSeen()){ markMcPopSeen(); showMcPopup(); return; }
+  // 0) EN ÖNCE: Monte Carlo pop-up'ı (her açılışta, final-6saate kadar)
+  if(me && mcPopWindowOpen()){ showMcPopup(); return; }
   // 0-A) Şampiyon ilan edildi → tam ekran tören (bir kez zorunlu)
   if(me && appConfig.champion_winner && typeof ceremonySeen==="function" && !ceremonySeen()){
-    markCeremonySeen(); showChampionCeremony({chain:true}); return;
+    markCeremonySeen(); showChampionCeremony({first:true}); return;
   }
   // 0a) Turnuva bitti: şampiyon ilan edilince herkese, her açılışta özet kartı (admin: önizleme olarak her zaman)
   if(me && wrapAvailable()){ showWrapPopup(session.user.id); return; }
@@ -3031,7 +3030,7 @@ function showOddsTable(mid){
     <p class="pop-p" style="margin:0 0 10px">Bu turda <b>sonucu</b> bilmek <b>${sc.outc}</b> puan. <b>Tam skoru</b> bilmek, skorun olasılığına (iddia oranına) göre değişir — ne kadar sürpriz skor, o kadar çok puan. Aşağıda her skorun tam-skor değeri:</p>
     <div class="odds-tablewrap"><table class="odds-table">
       <thead><tr><th>Skor</th><th>Hesap</th><th>Tam skor</th></tr></thead>
-      <tbody>${list}<tr class="other"><td>Diğer (listede yok)</td><td>${sc.outc}+${DYN_OTHER}</td><td><b>${sc.outc+DYN_OTHER}</b></td></tr></tbody>
+      <tbody>${list}<tr class="other"><td>Diğer (listede yok)</td><td>${sc.outc}+${dynOther(m.stage)}</td><td><b>${sc.outc+dynOther(m.stage)}</b></td></tr></tbody>
     </table></div>
     <button class="pop-btn" id="popupClose2">Kapat</button>`);
 }
@@ -4130,6 +4129,13 @@ boot();
 .cer-skip.on{opacity:1;pointer-events:auto}
 .cer-skip:hover{background:rgba(255,255,255,.16)}
 .cer-replay{margin-bottom:10px;border-color:rgba(212,175,55,.45) !important;color:var(--gold2) !important}
+.cer-jump{position:absolute;left:50%;bottom:58px;transform:translateX(-50%);z-index:5;
+  background:linear-gradient(135deg,rgba(212,175,55,.9),rgba(246,224,138,.9));border:none;color:#151007;
+  font-weight:900;font-size:12.5px;padding:10px 20px;border-radius:999px;cursor:pointer;white-space:nowrap;
+  box-shadow:0 8px 22px -10px rgba(212,175,55,.9);opacity:0;pointer-events:none;transition:opacity .4s ease}
+.cer-jump.on{opacity:1;pointer-events:auto}
+.cer-jump:hover{filter:brightness(1.07)}
+@media(max-width:420px){.cer-jump{font-size:11px;padding:9px 14px}}
 @media (prefers-reduced-motion: reduce){
   .cer-stage,.cer-title b,.pod-flag.on{animation:none !important}
 }
@@ -4150,6 +4156,7 @@ boot();
     </div>
     <div class="cer-count" id="cerCount"></div>
   </div>
+  <button class="cer-jump" id="cerJump">Listeyi atlayarak Turnuva Hikâyeme geç →</button>
   <button class="cer-skip" id="cerSkip">Atla ve siteye gir →</button>
 </div>
 
@@ -4217,6 +4224,13 @@ boot();
     setTimeout(()=>o.classList.remove("shake"), 700);
     ["pod1","pod2"].forEach(id=>{ const b=el(id).querySelector(".pod-blk"); if(b){ b.classList.remove("burst"); void b.offsetWidth; b.classList.add("burst"); } });
   }
+  async function jumpToStory(){
+    if(!running) return;
+    abort=true; running=false;
+    el("cerSkip").classList.remove("on"); el("cerJump").classList.remove("on");
+    await runWrapped();
+    closeCer();
+  }
   function closeCer(){
     abort=true; running=false;
     const o=el("cerOverlay");
@@ -4232,7 +4246,7 @@ boot();
 
   window.showChampionCeremony = async function(opts){
     if(running) return;
-    chain = !!(opts && opts.chain);      // otomatik açılışta: tören bitince özet kartı gelsin
+    const isFirst = !!(opts && opts.first);   // ilk (zorunlu) izleme → atlama yok
     const rows = buildLeaderboard();
     if(rows.length < 3) return;
     running=true; abort=false;
@@ -4244,15 +4258,18 @@ boot();
     ["pod1","pod2","pod3"].forEach(p=>el(p).innerHTML="");
     el("cerTitle").classList.remove("on"); el("cerTitle").innerHTML="";
     el("cerRays").classList.remove("go"); el("cerFlash").classList.remove("go");
-    el("cerOverlay").classList.remove("shake");
+    el("cerOverlay").classList.remove("shake"); el("cerJump").classList.remove("on");
     el("cerCount").classList.remove("tick"); el("cerCount").textContent="";
-    el("cerSkip").classList.remove("on");
+    el("cerSkip").classList.remove("on"); el("cerJump").classList.remove("on");
     zoomReset();
     el("cerOverlay").classList.add("on");
     document.body.style.overflow="hidden";
 
-    // 5. saniyeden itibaren "atla"
-    setTimeout(()=>{ if(running) el("cerSkip").classList.add("on"); }, 5000);
+    // Atlama butonları yalnızca TEKRAR izlemede
+    if(!isFirst){
+      el("cerSkip").classList.add("on");
+      el("cerJump").classList.add("on");
+    }
 
     // ---- Faz 1: 8. → 4. (alttan yukarı) ----
     const tail = rows.slice(3).reverse();          // 8,7,6,5,4
@@ -4320,26 +4337,220 @@ boot();
     [el("pod1"),el("pod2")].forEach(p=>{
       p.querySelectorAll("[data-e],[data-o],[data-p],[data-f],[data-n]").forEach(x=>x.classList.add("on"));
     });
-    bigBang(); fireConfetti();                        // flaş + sarsıntı + ışınlar + konfeti
-    await sleep(560);                                 // kısa yakın plan
-    if(abort) return;
+    // konfeti + kamera geri + ŞAMPİYON — hepsi aynı anda
     const st=el("cerStage");
-    st.style.transition="transform .45s cubic-bezier(.2,.9,.2,1)";   // HIZLI geri çekil
-    zoomReset();
-    await sleep(300);
+    st.style.transition="transform .5s cubic-bezier(.2,.9,.2,1)";
+    bigBang(); fireConfetti(); zoomReset();
     el("cerTitle").innerHTML=`<small>Şampiyon</small><b>${esc(champName).toUpperCase()}</b>`;
     el("cerTitle").classList.add("on");
     st.style.transition="";
-    await T(4600);
+    await T(4200);
+    if(abort) return;
+    await runWrapped();                                // Spotify Wrapped tarzı özet
     if(abort) return;
     closeCer();
   };
 
   document.addEventListener("click", e=>{
     if(e.target.closest("#cerSkip")) closeCer();
+    if(e.target.closest("#cerJump")) jumpToStory();
     if(e.target.closest("[data-cer-replay]")) showChampionCeremony();
   });
 })();
 </script>
+<style>
+/* ============ TURNUVA WRAPPED ============ */
+.wrp{position:fixed;inset:0;z-index:2100;display:none;overflow:hidden;
+  background:linear-gradient(180deg,#0a1a10 0%,#071009 100%)}
+.wrp.on{display:block}
+.wrp-bg{position:absolute;inset:0;opacity:.55;transition:background 1s ease}
+.wrp-bars{position:absolute;top:10px;left:10px;right:10px;display:flex;gap:4px;z-index:5}
+.wrp-bars i{flex:1;height:3px;border-radius:3px;background:rgba(255,255,255,.2);overflow:hidden;position:relative}
+.wrp-bars i b{position:absolute;inset:0;width:0;background:var(--gold);border-radius:3px;display:block}
+.wrp-bars i.done b{width:100%}
+.wrp-bars i.full b{width:100%}
+.wrp-bars i.live b{animation:wrpBar linear forwards}
+@keyframes wrpBar{from{width:0}to{width:100%}}
+.wrp-stage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  padding:52px clamp(46px,13vw,86px) 96px;z-index:2}
+.wrp-slide{width:100%;max-width:460px;text-align:center}
+.wrp-ic{font-size:clamp(34px,10vw,52px);line-height:1;margin-bottom:10px;
+  animation:wrpPop .5s cubic-bezier(.34,1.56,.64,1) both}
+.wrp-k{font-size:clamp(11px,3vw,13px);font-weight:900;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--gold2);margin-bottom:10px;animation:wrpUp .45s ease both .05s}
+.wrp-big{font-family:'Anton',sans-serif;font-size:clamp(34px,11vw,64px);line-height:1.05;color:#fff;
+  letter-spacing:.01em;margin-bottom:8px;animation:wrpUp .5s cubic-bezier(.2,.9,.2,1) both .15s;
+  word-break:break-word}
+.wrp-big.gold{background:linear-gradient(100deg,#c99f2e,#fff3c4 50%,#c99f2e);background-size:200% 100%;
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  animation:wrpUp .5s cubic-bezier(.2,.9,.2,1) both .15s, cerShim 3s linear infinite}
+.wrp-sub{font-size:clamp(14px,3.6vw,17px);color:#dce9e1;font-weight:700;line-height:1.5;
+  animation:wrpUp .5s ease both .3s}
+.wrp-note{font-size:12.5px;color:var(--muted);font-weight:600;margin-top:12px;line-height:1.5;
+  animation:wrpUp .5s ease both .45s}
+@keyframes wrpUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes wrpPop{from{opacity:0;transform:scale(.5)}to{opacity:1;transform:scale(1)}}
+/* oklar */
+.wrp-nav{position:absolute;top:50%;transform:translateY(-50%);z-index:6;
+  width:clamp(36px,9vw,46px);height:clamp(36px,9vw,46px);border-radius:50%;
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);color:#fff;
+  font-size:clamp(16px,4vw,20px);line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:background .18s,opacity .18s,transform .12s}
+.wrp-nav:hover{background:rgba(255,255,255,.18)}
+.wrp-nav:active{transform:translateY(-50%) scale(.92)}
+.wrp-nav.prev{left:clamp(6px,2.5vw,18px)}
+.wrp-nav.next{right:clamp(6px,2.5vw,18px)}
+.wrp-nav[disabled]{opacity:.25;cursor:default}
+/* son slayt CTA */
+.wrp-cta{margin-top:22px;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#151007;
+  border:none;border-radius:12px;font-weight:900;font-size:15px;padding:13px 26px;cursor:pointer;
+  box-shadow:0 10px 26px -10px rgba(212,175,55,.8);animation:wrpUp .5s ease both .5s}
+.wrp-cta:hover{filter:brightness(1.06)}
+.wrp-skip{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);z-index:6;
+  background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.2);color:#e9f2ec;
+  font-weight:800;font-size:12.5px;padding:10px 20px;border-radius:999px;cursor:pointer}
+.wrp-skip:hover{background:rgba(255,255,255,.17)}
+.wrp-skip.hide{display:none}
+.wrp-tap{position:absolute;inset:0;z-index:1;cursor:pointer}
+@media (prefers-reduced-motion: reduce){ .wrp-ic,.wrp-k,.wrp-big,.wrp-sub,.wrp-note,.wrp-cta{animation:none} }
+</style>
+
+<div class="wrp" id="wrpOverlay" aria-hidden="true">
+  <div class="wrp-bg" id="wrpBg"></div>
+  <div class="wrp-tap" id="wrpTap"></div>
+  <div class="wrp-bars" id="wrpBars"></div>
+  <button class="wrp-nav prev" id="wrpPrev" aria-label="Geri">‹</button>
+  <button class="wrp-nav next" id="wrpNext" aria-label="İleri">›</button>
+  <div class="wrp-stage"><div class="wrp-slide" id="wrpSlide"></div></div>
+  <button class="wrp-skip" id="wrpSkip">Siteye gir →</button>
+</div>
+
+<script>
+(function(){
+  const el=id=>document.getElementById(id);
+  const TONES=[
+    "radial-gradient(90% 70% at 50% 30%, rgba(212,175,55,.28), transparent 70%)",
+    "radial-gradient(90% 70% at 30% 60%, rgba(70,182,255,.22), transparent 70%)",
+    "radial-gradient(90% 70% at 70% 40%, rgba(43,213,117,.22), transparent 70%)",
+    "radial-gradient(90% 70% at 50% 70%, rgba(255,120,80,.20), transparent 70%)",
+    "radial-gradient(90% 70% at 40% 30%, rgba(180,120,255,.22), transparent 70%)"
+  ];
+  let slides=[], idx=0, manual=false, timer=null, finish=null;
+
+  function extraStats(uid){
+    const bm={}; predsAll.forEach(p=>{ if(p.user_id===uid) bm[p.match_id]=p; });
+    const fin=matches.filter(m=>m.finished && m.home_score!=null && new Date(m.kickoff)>=CUTOFF)
+      .sort((a,b)=> new Date(a.kickoff)-new Date(b.kickoff));
+    let streak=0, cur=0, gp=0, ga=0;
+    const freq={}, byStage={};
+    fin.forEach(m=>{
+      const pr=bm[m.id]; const g=grade(pr||null,m);
+      if(g && g.pts>0){ cur++; if(cur>streak) streak=cur; } else cur=0;
+      if(pr){ gp+=pr.home+pr.away; ga+=m.home_score+m.away_score;
+        const k=`${pr.home}-${pr.away}`; freq[k]=(freq[k]||0)+1; }
+      if(g) byStage[m.stage]=(byStage[m.stage]||0)+g.pts;
+    });
+    let favSc=null, favN=0;
+    Object.keys(freq).forEach(k=>{ if(freq[k]>favN){ favN=freq[k]; favSc=k; } });
+    let bestStage=null, bestPts=0;
+    Object.keys(byStage).forEach(k=>{ if(byStage[k]>bestPts){ bestPts=byStage[k]; bestStage=k; } });
+    return {streak, favSc, favN, goalsPred:gp, goalsReal:ga, bestStage, bestPts};
+  }
+  function buildSlides(w, x){
+    const medal = w.rank===1?"🥇":w.rank===2?"🥈":w.rank===3?"🥉":"🏁";
+    const S=[];
+    S.push({ic:"✨", k:"Turnuva bitti", big:"İşte Turnuva Özetin", sub:esc(w.prof.username), dur:3000});
+    S.push({ic:medal, k:"Bitiriş sıran", big:`${w.rank}.`, sub:`${w.total} oyuncu arasında`, dur:3000});
+    S.push({ic:"⚡", k:"Toplam puanın", big:w.pts.toLocaleString("tr-TR"), gold:1, sub:`${w.picks} tahmin yaptın`, dur:3000});
+    S.push({ic:"🎯", k:"İsabetin", big:`${w.exactCnt} tam skor`, sub:`ve ${w.outcCnt} doğru sonuç`, dur:3000});
+    if(x.streak>1) S.push({ic:"🔥", k:"En uzun serin", big:`${x.streak} maç`, sub:"üst üste puan aldın", dur:2900});
+    if(x.favSc) S.push({ic:"🎲", k:"Favori skorun", big:x.favSc, sub:`${x.favN} kez bu skoru yazdın`, dur:2900});
+    if(x.goalsPred) S.push({ic:"⚽", k:"Gol tahminin", big:`${x.goalsPred} gol`, sub:`sahada ${x.goalsReal} gol atıldı`,
+      note: x.goalsPred>x.goalsReal?"Sen sahadan daha hücumcuymuşsun 😄":(x.goalsPred<x.goalsReal?"Sahadakiler senden cömert çıktı":"Tam isabet!"), dur:3000});
+    if(x.bestStage) S.push({ic:"📈", k:"En verimli turun", big:esc(STAGE_LABEL[x.bestStage]||x.bestStage),
+      sub:`${x.bestPts.toLocaleString("tr-TR")} puan topladın`, dur:2900});
+    S.push({ic:"🏔️", k:"Zirven", big:`${w.peak}. sıra`, sub:"turnuva boyunca çıktığın en yüksek yer", dur:2900});
+    if(w.best) S.push({ic:"⭐", k:"En iyi anın", big:`+${w.best.pts}`, gold:1,
+      sub:`${esc(trName(w.best.m.team_home))} ${w.best.m.home_score}-${w.best.m.away_score} ${esc(trName(w.best.m.team_away))}`,
+      note:`Tahminin: ${w.best.pred.home}-${w.best.pred.away}`, dur:3400});
+    if(w.worst) S.push({ic:"😬", k:"En zor anın",
+      big:`${esc(trName(w.worst.m.team_home))} ${w.worst.m.home_score}-${w.worst.m.away_score} ${esc(trName(w.worst.m.team_away))}`,
+      sub:`Sen ${w.worst.pred.home}-${w.worst.pred.away} demiştin`, note:`${w.worst.others} kişi bu maçı bildi`, dur:3400});
+    if(w.champion) S.push({ic:w.champHit?"🏆":"🎯", k:"Şampiyon tahminin", big:esc(trName(w.champion)),
+      gold:w.champHit?1:0, sub:w.champHit?`Tuttu! +${w.champPts} puan`:"Bu sefer olmadı", dur:3200});
+    if(w.sidePts) S.push({ic:"🎲", k:"Final yan tahminleri", big:`+${w.sidePts}`, sub:"ekstra puan", dur:2700});
+    S.push({ic:w.badge.ic, k:"Tipin", big:esc(w.badge.name), gold:1, sub:esc(w.badge.desc), dur:3400});
+    S.push({ic:"🏆", k:"Dünya Kupası 2026", big:"Görüşmek üzere!", sub:"Tahmin Ligi · 56 maç · 8 oyuncu",
+      note:"Sıralamayı Lider Tablosu'ndan tekrar görebilirsin", cta:"Siteye gir →", dur:0});
+    return S;
+  }
+  function slideHTML(s){
+    return `<div class="wrp-ic">${s.ic}</div>
+      <div class="wrp-k">${s.k}</div>
+      <div class="wrp-big${s.gold?' gold':''}">${s.big}</div>
+      ${s.sub?`<div class="wrp-sub">${s.sub}</div>`:""}
+      ${s.note?`<div class="wrp-note">${s.note}</div>`:""}
+      ${s.cta?`<button class="wrp-cta" id="wrpCta">${s.cta}</button>`:""}`;
+  }
+  function show(i){
+    if(i<0 || i>=slides.length) return;
+    idx=i; clearTimeout(timer);
+    const s=slides[i], last=(i===slides.length-1);
+    el("wrpBg").style.background=TONES[i%TONES.length];
+    el("wrpSlide").innerHTML=slideHTML(s);
+    const bars=[...el("wrpBars").children];
+    bars.forEach((b,j)=>{
+      b.classList.remove("live","done","full");
+      if(j<i) b.classList.add("done");
+      else if(j===i){ if(manual || last) b.classList.add("full"); }
+    });
+    if(!manual && !last){
+      const bar=bars[i]; bar.classList.add("live");
+      bar.querySelector("b").style.animationDuration=s.dur+"ms";
+      timer=setTimeout(()=>show(i+1), s.dur);
+    }
+    el("wrpPrev").disabled = (i===0);
+    el("wrpNext").disabled = last;
+    el("wrpSkip").classList.toggle("hide", last);   // son slaytta büyük buton var
+  }
+  function closeWrp(){
+    clearTimeout(timer);
+    el("wrpOverlay").classList.remove("on");
+    document.body.style.overflow="";
+    if(finish){ const f=finish; finish=null; f(); }
+  }
+  window.closeWrapped = closeWrp;
+
+  window.runWrapped = function(){
+    return new Promise(resolve=>{
+      let uid=session.user.id;
+      let w=(typeof buildWrap==="function") ? buildWrap(uid) : null;
+      if(!w && me && me.is_admin){ const rr=buildLeaderboard(); if(rr.length){ uid=rr[0].id; w=buildWrap(uid); } }
+      if(!w){ resolve(); return; }
+      slides=buildSlides(w, extraStats(uid));
+      idx=0; manual=false; finish=resolve;
+      el("wrpBars").innerHTML=slides.map(()=>`<i><b></b></i>`).join("");
+      el("wrpOverlay").classList.add("on");
+      document.body.style.overflow="hidden";
+      show(0);
+    });
+  };
+
+  document.addEventListener("click", e=>{
+    if(!el("wrpOverlay").classList.contains("on")) return;
+    if(e.target.closest("#wrpPrev")){ show(idx-1); return; }
+    if(e.target.closest("#wrpNext")){ show(idx+1); return; }
+    if(e.target.closest("#wrpCta") || e.target.closest("#wrpSkip")){
+      closeWrp(); if(typeof closeChampionCeremony==="function") closeChampionCeremony(); return;
+    }
+    if(e.target.closest("#wrpTap")){ if(idx<slides.length-1) show(idx+1); }
+  });
+  document.addEventListener("keydown", e=>{
+    if(!el("wrpOverlay").classList.contains("on")) return;
+    if(e.key==="ArrowLeft"){ show(idx-1); }
+    if(e.key==="ArrowRight"){ show(idx+1); }
+  });
+})();
+</script>
 </body>
-</html>v
+</html>
