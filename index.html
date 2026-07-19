@@ -538,6 +538,9 @@ nav.tabs button:hover{color:var(--ink)}
 .lf-ps.hit{color:#3fd17a}.lf-ps.close{color:var(--gold2)}.lf-ps.miss{color:var(--muted)}.lf-ps.wait{color:#8fb3ff}
 .lf-livetag.soon{color:var(--gold2)}
 .livefinal.soon{border-color:rgba(212,175,55,.4);animation:none}
+@keyframes lfSettle{0%{opacity:0;transform:translateY(9px)}100%{opacity:1;transform:translateY(0)}}
+.lf-row{position:relative}
+.lf-row.lf-moved{z-index:3;background:rgba(212,175,55,.14);box-shadow:0 4px 16px -6px rgba(0,0,0,.5)}
 @media (prefers-reduced-motion: reduce){ .livefinal{animation:none} }
 /* Herkesin şampiyon tahmini çipi (lider tablosu) */
 .champ-pick{display:inline-flex;align-items:center;gap:4px;margin-left:6px;vertical-align:middle;
@@ -1090,7 +1093,7 @@ nav.tabs button:hover{color:var(--ink)}
     <button data-tab="bracket">Şema</button>
     <button data-tab="how">Nasıl Oynanır</button>
     <button data-tab="leaderboard">Lider Tablosu</button>
-    <button data-tab="winchance">Kazanma %</button>
+    <button data-tab="winchance" style="display:none">Kazanma %</button>
     <button data-tab="chart">Grafik</button>
     <button data-tab="stats">İstatistikler</button>
     <button data-tab="admin" id="adminTab" class="hidden">Yönetim</button>
@@ -1417,7 +1420,7 @@ function avatarInner(username, favTeam){
    ==================================================================== */
 let sb=null, session=null, me=null;
 let matches=[], predsMine={}, predsAll=[], profiles=[], predCounts={}, appConfig={};
-let curStage="third", curGroup="ALL", adminStage="group";
+let curStage="final", curGroup="ALL", adminStage="group";
 let sortMode="date"; // "date" = tarihe göre (varsayılan), "group" = gruba göre
 let showPast=false; // false = sadece 24 Haziran ve sonrası; true = öncesi de görünür
 let showOpenOnly=false; // Son 32 / Son 16: sadece kilitli olmayan (tahmine açık) maçlar
@@ -1747,6 +1750,7 @@ function renderScoringCard(){
 function renderStageInfo(){
   const box=$("#stageInfo"); if(!box) return;
   renderScoringCard();
+  if(curStage==="final"){ box.innerHTML=""; return; }   // finalde dinamik skor kartı gösterilmez
   const sc=scoringFor(curStage), bonus=sc.exact-sc.outc;
   const phrase=STAGE_PHRASE[curStage]||"Bu turda";
   if(DYNAMIC_STAGES.has(curStage)){
@@ -1808,6 +1812,7 @@ function renderMatches(){
     const fm=finalMatch();
     if(fm && !fm.finished && liveFinalWindowOpen(fm)){
       list.insertAdjacentHTML("afterbegin", renderLiveFinal(fm));
+      animateLiveFinal(list);
     }
     const seeBtn = (fm && fm.team_home && fm.team_away && !fm.finished && !isInPlay(fm))
       ? `<button class="seeall fin-seeall" data-finalpreds="1">👁 Herkesin final tahminini gör</button>` : "";
@@ -1824,6 +1829,35 @@ function liveFinalWindowOpen(fm){                       // maç saatinden 30 dk 
   if(!fm||!fm.kickoff) return false;
   return now() >= new Date(new Date(fm.kickoff).getTime() - 30*60*1000);
 }
+// Canlı sıralama animasyonu: her açılışta hafif oturma + sıra değişince FLIP kaydırma
+let _lfPos=null;   // uid -> önceki ekran Y'si (bu oturumda)
+function animateLiveFinal(scope){
+  const rows=[...(scope||document).querySelectorAll(".lf-row")];
+  if(!rows.length) return;
+  const first=_lfPos, next={};
+  rows.forEach(el=>{ next[el.dataset.uid]=el.offsetTop; });
+  const reduce=window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  rows.forEach((el,i)=>{
+    const uid=el.dataset.uid, prevY=first&&first[uid];
+    if(!reduce && prevY!=null && Math.abs(prevY-next[uid])>2){
+      // yer değişti → önceki konumdan mevcut konuma kaydır (FLIP)
+      const dy=prevY-next[uid];
+      el.style.transition="none";
+      el.style.transform=`translateY(${dy}px)`;
+      el.classList.add("lf-moved");
+      requestAnimationFrame(()=>requestAnimationFrame(()=>{
+        el.style.transition="transform .6s cubic-bezier(.2,.8,.2,1)";
+        el.style.transform="translateY(0)";
+      }));
+      setTimeout(()=>{ el.classList.remove("lf-moved"); el.style.transition=""; }, 700);
+    } else if(!reduce && !first){
+      // ilk render → hafif sırayla oturma
+      el.style.animation=`lfSettle .45s cubic-bezier(.2,.8,.2,1) both`;
+      el.style.animationDelay=`${i*45}ms`;
+    }
+  });
+  _lfPos=next;
+}
 function flagImg(team){ const u=team&&favFlagUrl(team); return u?`<img src="${u}" alt="" loading="lazy">`:""; }
 function renderLiveFinal(fm){
   const started = fm.home_score!=null && fm.away_score!=null;   // skor gelmiş mi
@@ -1837,7 +1871,7 @@ function renderLiveFinal(fm){
     const now=i+1, was=preRank[r.id]||now, diff=was-now;
     const mv = !started ? "" : diff>0?`<span class="lf-up">▲${diff}</span>`:diff<0?`<span class="lf-dn">▼${-diff}</span>`:`<span class="lf-eq">·</span>`;
     const liveG = (started && r.live>0)?`<span class="lf-plus">+${r.live}</span>`:"";
-    return `<div class="lf-row${i===0?' top':''}">
+    return `<div class="lf-row${i===0?' top':''}" data-uid="${r.id}" style="--lfi:${i}">
       <span class="lf-rk">${now}</span>${mv||'<span class="lf-eq"></span>'}
       <span class="lf-av">${avatarInner(r.username,r.fav)}</span>
       <span class="lf-nm">${esc(r.username)}${r.id===session.user.id?' <i>(sen)</i>':''}</span>
