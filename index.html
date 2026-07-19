@@ -511,6 +511,12 @@ nav.tabs button:hover{color:var(--ink)}
 .lf-score em{color:var(--muted);font-size:clamp(20px,6vw,30px);align-self:center}
 .lf-livetag{position:absolute;top:-12px;left:50%;transform:translateX(-50%);display:inline-flex;align-items:center;gap:3px;
   font-size:9px;font-weight:900;letter-spacing:.1em;color:var(--energy)}
+.lf-livetag:not(.soon){animation:lfBeat 1.1s ease-in-out infinite}
+.lf-livetag:not(.soon) .livedot{animation:lfDot 1.1s ease-in-out infinite}
+@keyframes lfBeat{0%,100%{opacity:.75;transform:translateX(-50%) scale(1)}
+  35%{opacity:1;transform:translateX(-50%) scale(1.14)}55%{opacity:.9;transform:translateX(-50%) scale(1.02)}}
+@keyframes lfDot{0%,100%{box-shadow:0 0 0 0 rgba(255,90,60,.6);transform:scale(1)}
+  35%{box-shadow:0 0 0 5px rgba(255,90,60,0);transform:scale(1.3)}}
 .lf-sec{font-size:11px;font-weight:900;color:var(--gold2);padding:10px 14px 5px;letter-spacing:.02em}
 .lf-sec span{color:var(--muted);font-weight:600;letter-spacing:0}
 .lf-lb{padding:0 8px 4px}
@@ -541,7 +547,7 @@ nav.tabs button:hover{color:var(--ink)}
 @keyframes lfSettle{0%{opacity:0;transform:translateY(9px)}100%{opacity:1;transform:translateY(0)}}
 .lf-row{position:relative}
 .lf-row.lf-moved{z-index:3;background:rgba(212,175,55,.14);box-shadow:0 4px 16px -6px rgba(0,0,0,.5)}
-@media (prefers-reduced-motion: reduce){ .livefinal{animation:none} }
+@media (prefers-reduced-motion: reduce){ .livefinal,.lf-livetag,.lf-livetag .livedot{animation:none} }
 /* Herkesin şampiyon tahmini çipi (lider tablosu) */
 .champ-pick{display:inline-flex;align-items:center;gap:4px;margin-left:6px;vertical-align:middle;
   background:#13261c;border:1px solid rgba(212,175,55,.35);border-radius:999px;padding:1px 6px 1px 3px;line-height:1}
