@@ -538,7 +538,8 @@ nav.tabs button:hover{color:var(--ink)}
   border-bottom:1px solid var(--line)}
 .lf-prow:last-child{border-bottom:none}
 .lf-prow.me{background:rgba(212,175,55,.08)}
-.lf-pn{font-size:12.5px;font-weight:700;color:#dce9e1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lf-pn{font-size:12.5px;font-weight:700;color:#dce9e1;display:flex;align-items:center;gap:2px;min-width:0}
+.lf-pn .lf-champ{flex:0 0 auto}
 .lf-pp{font-weight:900;color:#fff;font-size:13px;text-align:center;font-variant-numeric:tabular-nums}
 .lf-ps{font-size:10.5px;font-weight:800;text-align:right;white-space:nowrap}
 .lf-ps.hit{color:#3fd17a}.lf-ps.close{color:var(--gold2)}.lf-ps.miss{color:var(--muted)}.lf-ps.wait{color:#8fb3ff}
@@ -716,6 +717,16 @@ nav.tabs button:hover{color:var(--ink)}
 .sb-row{margin-bottom:11px}
 .sb-q{font-weight:800;font-size:13.5px;color:#fff;margin-bottom:6px}
 .sb-opts{display:flex;gap:8px}
+.sb-optcol{flex:1;display:flex;flex-direction:column;gap:5px}
+.sb-optcol .sb-opt{width:100%}
+.sb-who{font-size:11px;font-weight:700;color:#cfe0d5;line-height:1.45;text-align:center;padding:0 2px}
+.sb-who.empty{color:var(--muted)}
+/* canlı final tahmin satırındaki şampiyon çipi */
+.lf-champ{display:inline-flex;align-items:center;gap:3px;margin-left:6px;vertical-align:middle;
+  background:#13261c;border:1px solid rgba(212,175,55,.35);border-radius:999px;padding:1px 5px 1px 2px;
+  font-size:9.5px;font-weight:900;color:var(--gold2);line-height:1}
+.lf-champ img{width:13px;height:10px;object-fit:cover;border-radius:2px}
+.lf-champ.dead{border-color:var(--line2);color:var(--muted);opacity:.6;filter:grayscale(1)}
 .sb-opt{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--panel);
   border:1px solid var(--line2);border-radius:11px;padding:10px;cursor:pointer;color:var(--ink);font-weight:800;font-size:14px}
 .sb-opt b{color:var(--gold2);font-size:12px}
@@ -1885,9 +1896,17 @@ function renderLiveFinal(fm){
     </div>`;
   }).join("");
   const players=profiles.filter(p=>!isHiddenUser(p.username));
+  const cprob=championProbs();
   const predHTML=players.map(p=>{
     const pr=predByU[p.id];
-    if(!pr) return `<div class="lf-prow"><span class="lf-pn">${esc(p.username)}</span><span class="lf-pp">—</span><span class="lf-ps miss">yok</span></div>`;
+    // şampiyon tahmini çipi (lider tablosundaki gibi)
+    let champ="";
+    if(p.champion){
+      const alive=(cprob[p.champion]||0)>0, pts=alive?(CHAMPION_POINTS[p.champion]||0):0, fl=flagUrl(p.champion);
+      champ=`<span class="lf-champ${alive?'':' dead'}" title="${esc(trName(p.champion))} · ${alive?'+'+pts:'elendi'}">${fl?`<img src="${fl}" alt="">`:''}+${pts}</span>`;
+    }
+    const nameCell=`<span class="lf-pn">${esc(p.username)}${p.id===session.user.id?' (sen)':''}${champ}</span>`;
+    if(!pr) return `<div class="lf-prow">${nameCell}<span class="lf-pp">—</span><span class="lf-ps miss">yok</span></div>`;
     let cls="wait", txt="bekliyor";
     if(started){
       const g=grade(pr, fm);
@@ -1896,7 +1915,7 @@ function renderLiveFinal(fm){
       else { cls="miss"; txt="kaçırıyor"; }
     }
     return `<div class="lf-prow${p.id===session.user.id?' me':''}">
-      <span class="lf-pn">${esc(p.username)}${p.id===session.user.id?' (sen)':''}</span>
+      ${nameCell}
       <span class="lf-pp">${pr.home}-${pr.away}</span>
       <span class="lf-ps ${cls}">${txt}</span></div>`;
   }).join("");
@@ -1974,6 +1993,12 @@ function sideBetsPanelHTML(){
   const res = sideResults();
   const my = (me&&me.final_side_bets)||{};
   const resolved = SIDE_KEYS.some(k=>res[k]); // sonuç girilmiş mi
+  // herkesin yan tahminleri: key -> val -> [isim]
+  const pickMap={};
+  profiles.filter(p=>!isHiddenUser(p.username)).forEach(p=>{
+    const sb=p.final_side_bets||{};
+    SIDE_BETS.forEach(b=>{ const v=sb[b.key]; if(v){ (pickMap[b.key]=pickMap[b.key]||{}); (pickMap[b.key][v]=pickMap[b.key][v]||[]).push(p.username); } });
+  });
   let lockNote="";
   if(!bothTeams) lockNote=`<div class="sb-lock">🔒 Final eşleşmesi belli olunca açılacak.</div>`;
   else if(!open && !resolved) lockNote=`<div class="sb-lock">🔒 Maç başladı, yan tahminler kilitlendi.</div>`;
@@ -1984,8 +2009,14 @@ function sideBetsPanelHTML(){
       const isRes = resolved && res[b.key]===o.v;
       const cls = ["sb-opt", sel?"sel":"", isRes?"correct":"", (resolved&&sel&&!isRes)?"wrong":""].filter(Boolean).join(" ");
       const dis = open ? "" : "disabled";
-      return `<button class="${cls}" data-sb="${b.key}" data-val="${o.v}" ${dis}>
-        <span>${o.label}</span><b>+${o.pts}</b>${isRes?' ✓':''}</button>`;
+      const names = (pickMap[b.key]&&pickMap[b.key][o.v])||[];
+      const nameList = names.length
+        ? `<div class="sb-who">${names.map(n=>esc(n)).join(", ")}</div>`
+        : `<div class="sb-who empty">—</div>`;
+      return `<div class="sb-optcol">
+        <button class="${cls}" data-sb="${b.key}" data-val="${o.v}" ${dis}>
+          <span>${o.label}</span><b>+${o.pts}</b>${isRes?' ✓':''}</button>
+        ${nameList}</div>`;
     }).join("");
     return `<div class="sb-row"><div class="sb-q">${b.q}</div><div class="sb-opts">${opts}</div></div>`;
   }).join("");
