@@ -2231,59 +2231,96 @@ function computeWinChanceRaw(){
   });
   const gamma=2.6, pw2=rows.map(r=>Math.pow(r.S,gamma)), sumOld=pw2.reduce((a,b)=>a+b,0)||1;
   rows.forEach((r,i)=>{ r.oldP=pw2[i]/sumOld; });
-  // --- 2) Monte Carlo — %80 ağırlık ---
-  const mxHit=Math.max(...rows.map(r=>r.hit),1);
-  rows.forEach(r=>{ r.pOut = 0.28 + 0.12*(r.hit/mxHit); });   // sonucu bilme ~%33 (forma göre 28-40)
- const setup=rows.map(r=>({
-  uid:r.uid, base:r.P, pOut:r.pOut, champion:r.champion,
-  ms: remaining.map(m=>{
-    const O=scoringFor(m.stage).outc;
-    if(DYNAMIC_STAGES.has(m.stage)){
-      const base=STAGE_BASE_BONUS[m.stage]||90, cap=DYN_CAP, jackpot=dynOther(m.stage);
-      return {O, dyn:true, base, cap, jackpot, qEx:0.42, top:O+jackpot};
-    }
-    const Ex=scoringFor(m.stage).exact;
-    return {O, dyn:false, E:Ex, qEx:0.42, top:Ex};
-  })
-}));
-  const champTeams=Object.keys(cprob).filter(t=>cprob[t]>0);
-  const N=MC_N;
-  // Lideri (mevcut 1.) referans al: herkes "onu geçer mi" diye ölçülür
+  // --- 2) Monte Carlo ---
+  const fm=finalMatch();
+  const finalOdds = fm && oddsOf(fm);
+  const finalOnly = remaining.length===1 && fm && remaining[0].id===fm.id
+    && fm.team_home && fm.team_away && finalOdds;
+
   const leaderIdx = rows.reduce((bi,r,i,a)=> r.P>a[bi].P?i:bi, 0);
   const leaderUid = rows[leaderIdx].uid;
-  const beats={}; rows.forEach(r=>beats[r.uid]=0);   // lideri geçme sayısı
-  const wins={}; rows.forEach(r=>wins[r.uid]=0);     // (bilgi amaçlı) simülasyonu 1. bitirme
-  for(let s=0;s<N;s++){
-    let champ=null;
-    if(champTeams.length){ const x=Math.random(); let acc=0;
-      for(const t of champTeams){ acc+=cprob[t]; if(x<=acc){ champ=t; break; } } }
-    const pts={}; let best=-1, winners=[];
-    for(const p of setup){
-      let v=p.base;
-     for(const mm of p.ms){
-  if(Math.random()<p.pOut){
-    if(Math.random()<mm.qEx){
-      if(mm.dyn){
-        // %6 ihtimalle listede olmayan (jackpot) skor, aksi halde taban..tavan arası rastgele bonus
-        const bonus = (Math.random()<0.06) ? mm.jackpot : (mm.base + Math.random()*(mm.cap-mm.base));
-        v += mm.O + bonus;
-      } else {
-        v += mm.E;
+  const beats={}; rows.forEach(r=>beats[r.uid]=0);
+  const wins={}; rows.forEach(r=>wins[r.uid]=0);
+
+  if(finalOnly){
+    // Gerçek skor oranlarını, gerçek olasılıklara çevir (implied prob)
+    const sc=scoringFor(fm.stage);
+    const keys=Object.keys(finalOdds);
+    const implied=keys.map(k=>1/finalOdds[k]);
+    const sumImplied=implied.reduce((a,b)=>a+b,0);
+    const otherW=Math.max(0.02, 1-sumImplied); // listede olmayan skorlara küçük bir pay
+    const total=sumImplied+otherW;
+    // "diğer" durumda kazananı, listedeki ev/deplasman galibiyet ağırlığına göre seç
+    let homeW=0, awayW=0;
+    keys.forEach((k,i)=>{ const [h,a]=k.split("-").map(Number); if(h>a) homeW+=implied[i]; else if(a>h) awayW+=implied[i]; });
+    const homeShare = (homeW+awayW)>0 ? homeW/(homeW+awayW) : 0.5;
+
+    const predByUser={};
+    predsAll.forEach(p=>{ if(p.match_id===fm.id) predByUser[p.user_id]=p; });
+
+    for(let s=0;s<N;s++){
+      const r=Math.random()*total; let acc=0, h=null,a=null,isOther=false;
+      for(let i=0;i<keys.length;i++){ acc+=implied[i]; if(r<=acc){ [h,a]=keys[i].split("-").map(Number); break; } }
+      if(h==null){ isOther=true; if(Math.random()<homeShare){ h=9;a=0; } else { h=0;a=9; } } // "diğer" için sembolik skor
+      const champTeam = h>a ? fm.team_home : fm.team_away;
+
+      const pts={}; let best=-1, winners=[];
+      for(const row of rows){
+        const pred=predByUser[row.uid]||null;
+        let v=row.P;
+        if(isOther){
+          // Nadir/listede olmayan skor: kimse tam tutturmuş sayılmaz, sadece sonuç bilme puanı verilir
+          if(pred && ((pred.home>pred.away)===(h>a) || pred.home===pred.away&&h===a)) v+=sc.outc;
+        }else{
+          const g=grade(pred, {...fm, home_score:h, away_score:a});
+          if(g) v+=g.pts;
+        }
+        if(row.champion===champTeam) v+=CHAMPION_POINTS[champTeam]||0;
+        pts[row.uid]=v;
+        if(v>best){ best=v; winners=[row.uid]; } else if(v===best) winners.push(row.uid);
       }
-    } else {
-      v += mm.O;
+      for(const u of winners) wins[u]+=1/winners.length;
+      const lp=pts[leaderUid];
+      for(const row of rows){ if(row.uid!==leaderUid && pts[row.uid]>lp) beats[row.uid]+=1; }
+    }
+  } else {
+    // ESKİ jenerik model (final dışında maç kaldığında ya da oran girilmediğinde)
+    const mxHit=Math.max(...rows.map(r=>r.hit),1);
+    rows.forEach(r=>{ r.pOut = 0.28 + 0.12*(r.hit/mxHit); });
+    const setup=rows.map(r=>({
+      uid:r.uid, base:r.P, pOut:r.pOut, champion:r.champion,
+      ms: remaining.map(m=>{
+        let Ex;
+        if(DYNAMIC_STAGES.has(m.stage)){
+          const base=STAGE_BASE_BONUS[m.stage]||90;
+          Ex = scoringFor(m.stage).outc + Math.round((base + DYN_CAP)/2);
+        } else {
+          Ex = scoringFor(m.stage).exact;
+        }
+        return {E:Ex, O:scoringFor(m.stage).outc, qEx:0.42};
+      })
+    }));
+    const champTeams=Object.keys(cprob).filter(t=>cprob[t]>0);
+    for(let s=0;s<N;s++){
+      let champ=null;
+      if(champTeams.length){ const x=Math.random(); let acc=0;
+        for(const t of champTeams){ acc+=cprob[t]; if(x<=acc){ champ=t; break; } } }
+      const pts={}; let best=-1, winners=[];
+      for(const p of setup){
+        let v=p.base;
+        for(const mm of p.ms){
+          if(Math.random()<p.pOut) v += (Math.random()<mm.qEx) ? mm.E : mm.O;
+        }
+        if(champ && p.champion===champ) v += CHAMPION_POINTS[champ]||0;
+        pts[p.uid]=v;
+        if(v>best){ best=v; winners=[p.uid]; } else if(v===best) winners.push(p.uid);
+      }
+      for(const u of winners) wins[u]+=1/winners.length;
+      const lp=pts[leaderUid];
+      for(const p of setup){ if(p.uid!==leaderUid && pts[p.uid]>lp) beats[p.uid]+=1; }
     }
   }
-}
-      if(champ && p.champion===champ) v += CHAMPION_POINTS[champ]||0;
-      pts[p.uid]=v;
-      if(v>best){ best=v; winners=[p.uid]; } else if(v===best) winners.push(p.uid);
-    }
-    for(const u of winners) wins[u]+=1/winners.length;
-    // lideri geçen (eşitlikte geçmiş sayılmaz) herkesi say
-    const lp=pts[leaderUid];
-    for(const p of setup){ if(p.uid!==leaderUid && pts[p.uid]>lp) beats[p.uid]+=1; }
-  }
+
   rows.forEach(r=>{ r.mc=wins[r.uid]/N; r.wins=wins[r.uid]; });
   // Matematiksel olarak hâlâ birinci olabilir mi? (kendi tahminlerinin tavanı vs liderin mevcut puanı)
   const leaderP=Math.max(...rows.map(r=>r.P),0);
