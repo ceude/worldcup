@@ -2343,29 +2343,31 @@ function winningScenario(uid, leader){
   const meProf=profiles.find(p=>p.id===uid); if(!meProf) return null;
   const myP=userTotals(uid).pts;
   const cprob=championProbs();
+  const remaining=matches.filter(m=> !m.finished && !isInPlay(m))
+    .sort((a,b)=> new Date(a.kickoff)-new Date(b.kickoff));
 
-  // Şampiyon bonusu SADECE farklı takım seçtiysem net katkı sağlar.
-  // Aynı takımı seçtiysek (ör. ikimiz de Arjantin) o senaryoda ikimiz de kazanırız,
-  // yani fark kapanmaz — bu yüzden göstermiyoruz.
+  const fm=finalMatch();
+  const onlyFinalLeft = remaining.length===1 && fm && remaining[0].id===fm.id
+    && fm.team_home && fm.team_away;
+
+  if(onlyFinalLeft) return finalWinningScenario(uid, leader, fm, myP, meProf);
+
+  // --- final dışında birden fazla maç kaldıysa, eski genel mantık aynen kalır ---
   const myChampAlive = meProf.champion && (cprob[meProf.champion]||0)>0;
   const myChampPts = myChampAlive ? (CHAMPION_POINTS[meProf.champion]||0) : 0;
   const leaderChampAlive = leader.champion && (cprob[leader.champion]||0)>0;
   const leaderChampPts = leaderChampAlive ? (CHAMPION_POINTS[leader.champion]||0) : 0;
   const sameChampion = meProf.champion && leader.champion && meProf.champion===leader.champion;
   const champHelps = myChampAlive && !sameChampion;
-
   let need = (leader.P||0) - myP + 1;
-  if(leaderChampAlive) need += leaderChampPts;   // liderin kendi şampiyonu hayattaysa onu da alacağını varsay
-  if(champHelps) need -= myChampPts;             // benim şampiyonum FARKLIYSA açığı azaltır
+  if(leaderChampAlive) need += leaderChampPts;
+  if(champHelps) need -= myChampPts;
 
-  const remaining=matches.filter(m=> !m.finished && !isInPlay(m))
-    .sort((a,b)=> new Date(a.kickoff)-new Date(b.kickoff));
   const slots=remaining.map(m=>({
     m, top: DYNAMIC_STAGES.has(m.stage) ? (scoringFor(m.stage).outc + dynOther(m.stage)) : scoringFor(m.stage).exact
   }));
   const gain=slots.reduce((s,x)=>s+x.top,0);
   if(gain < need) return {possible:false};
-
   let acc=0; const parts=[];
   for(const sl of slots){
     const home=trName(sl.m.team_home)||'?', away=trName(sl.m.team_away)||'?';
@@ -2373,13 +2375,9 @@ function winningScenario(uid, leader){
       const remainNeed = need - acc;
       const rec = recommendScoreFor(sl.m, remainNeed);
       acc += sl.top;
-      if(rec && !rec.other){
-        parts.push(`<b>${esc(home)} ${rec.home}-${rec.away} ${esc(away)}</b> oyna → en az <b>${rec.total}</b> puan getirir`);
-      } else if(rec && rec.other){
-        parts.push(`${esc(home)}–${esc(away)}: listede olmayan sürpriz bir skor tutarsa <b>${rec.total}</b> puan (en yüksek getiri)`);
-      } else {
-        parts.push(`${esc(home)}–${esc(away)}: en az <b>${remainNeed}</b> puanlık bir skor oynamalısın`);
-      }
+      if(rec && !rec.other) parts.push(`<b>${esc(home)} ${rec.home}-${rec.away} ${esc(away)}</b> oyna → en az <b>${rec.total}</b> puan getirir`);
+      else if(rec && rec.other) parts.push(`${esc(home)}–${esc(away)}: listede olmayan sürpriz bir skor tutarsa <b>${rec.total}</b> puan (en yüksek getiri)`);
+      else parts.push(`${esc(home)}–${esc(away)}: en az <b>${remainNeed}</b> puanlık bir skor oynamalısın`);
     } else {
       parts.push(`${esc(home)}–${esc(away)}: sadece sonucu bilmen yeterli (+${scoringFor(sl.m.stage).outc})`);
     }
@@ -2387,17 +2385,63 @@ function winningScenario(uid, leader){
   return {possible:true, parts,
           champ: champHelps ? {name:trName(meProf.champion), pts:myChampPts} : null};
 }
+
+// Final tek maç kaldıysa: iki ayrı, birbirini dışlayan senaryo (İspanya kazanır / Arjantin kazanır)
+function finalWinningScenario(uid, leader, fm, myP, meProf){
+  const sc=scoringFor(fm.stage);
+  const teamH=fm.team_home, teamA=fm.team_away;
+  const odds=oddsOf(fm);
+  const scenarios=[
+    {winner:teamH, label:trName(teamH), side:"home"},
+    {winner:teamA, label:trName(teamA), side:"away"}
+  ];
+  const out=scenarios.map(sn=>{
+    // Bu senaryoda şampiyon kesin olarak sn.winner — bonus SADECE bu tarafa uygulanır.
+    const leaderGets = (leader.champion===sn.winner) ? (CHAMPION_POINTS[sn.winner]||0) : 0;
+    const myGets = (meProf.champion===sn.winner) ? (CHAMPION_POINTS[sn.winner]||0) : 0;
+    const need = (leader.P||0) + leaderGets - myP - myGets + 1;
+
+    let best=null;
+    if(odds){
+      Object.keys(odds).forEach(k=>{
+        const [h,a]=k.split("-").map(Number);
+        const winnerOk = sn.side==="home" ? (h>a) : (a>h);
+        if(!winnerOk) return;
+        const bonus=dynamicBonus(fm,k); if(bonus==null) return;
+        const total=sc.outc+bonus;
+        if(total>=need && (!best || total<best.total)) best={home:h,away:a,total};
+      });
+    }
+    if(!best){
+      const jackTotal=sc.outc+dynOther(fm.stage);
+      if(jackTotal>=need) best={other:true,total:jackTotal};
+    }
+    return {winnerLabel:sn.label, need, best, champGain:myGets};
+  });
+  return {possible: out.some(o=>o.best), isFinalSpecial:true, finalScenarios:out};
+}
 function showMcPopup(){
   const rows=computeWinChance(); if(!rows.length) return;
   const leader=rows.find(r=>r.winsR==null) || rows[0];
   const my=rows.find(r=>r.uid===session.user.id); if(!my) return;
   const isLeader = my.uid===leader.uid;
   const w = isLeader ? null : winningScenario(my.uid, leader);
-  const scenBlock = (!isLeader && w && w.possible) ? `
-  <div class="mcs-head">🎯 ${esc(leader.username)}'ı geçmek için senaryon</div>
-  <div class="mcs-list">${w.parts.map(p=>`<div class="mcs-row"><div class="mcs-sc">${p}</div></div>`).join("")}
-  ${w.champ ? `<div class="mcs-row"><div class="mcs-sc">Ayrıca şampiyon <b>${esc(w.champ.name)}</b> tutarsa +${w.champ.pts} puan daha (${esc(leader.username)}'ın seçtiği takımdan farklı olduğu için işine yarar)</div></div>` : ""}
-  </div>` : "";
+  const scenBlock = (!isLeader && w) ? (
+  w.isFinalSpecial
+    ? `<div class="mcs-head">🎯 ${esc(leader.username)}'ı geçmek için — final sonucuna göre</div>
+       <div class="mcs-list">${w.finalScenarios.map(o=>{
+         if(!o.best) return `<div class="mcs-row"><div class="mcs-sc"><b>${esc(o.winnerLabel)}</b> kazanırsa: hiçbir skorla geçemezsin</div></div>`;
+         const scoreTxt = o.best.other
+           ? `listede olmayan sürpriz bir skorla (en az ${o.best.total} puan)`
+           : `<b>${o.best.home}-${o.best.away}</b> skoruyla (en az ${o.best.total} puan)`;
+         const champTxt = o.champGain ? ` · bu senaryoda şampiyon bonusun +${o.champGain}` : "";
+         return `<div class="mcs-row"><div class="mcs-sc"><b>${esc(o.winnerLabel)} kazanırsa:</b> ${scoreTxt}${champTxt}</div></div>`;
+       }).join("")}</div>`
+    : (w.possible ? `<div class="mcs-head">🎯 ${esc(leader.username)}'ı geçmek için senaryon</div>
+       <div class="mcs-list">${w.parts.map(p=>`<div class="mcs-row"><div class="mcs-sc">${p}</div></div>`).join("")}
+       ${w.champ ? `<div class="mcs-row"><div class="mcs-sc">Ayrıca şampiyon <b>${esc(w.champ.name)}</b> tutarsa +${w.champ.pts} puan</div></div>` : ""}
+       </div>` : "")
+) : "";
   const lead = isLeader
     ? `<p class="mcp-lead">Şu an <b>sen liderdesin</b>. Diğerlerinin seni geçme ihtimaline göre hesaplanan şampiyonluk şansın:</p>`
     : `<p class="mcp-lead">Turnuvanın kalanı <b>Monte Carlo</b> ile <b>${MC_N.toLocaleString("tr-TR")} kez</b> senin için ayrı ayrı oynatıldı. Bu oran sadece sana özeldir — başkalarının şansını etkilemez.</p>`;
