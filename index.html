@@ -2386,21 +2386,32 @@ function winningScenario(uid, leader){
           champ: champHelps ? {name:trName(meProf.champion), pts:myChampPts} : null};
 }
 
-// Final tek maç kaldıysa: iki ayrı, birbirini dışlayan senaryo (İspanya kazanır / Arjantin kazanır)
+// Şampiyon bonusu: bir kişinin seçtiği takım, o senaryodaki galip takımla eşleşiyorsa
+function champGainIfWinner(champion, champTeam){
+  if(!champion || !champTeam) return 0;
+  return (champion===champTeam) ? (CHAMPION_POINTS[champTeam]||0) : 0;
+}
+
+// Liderin (örn. ilkay) kendi final tahminini, varsayımsal gerçek sonuca (h-a) göre puanla
+function leaderFinalPts(leaderUid, fm, h, a){
+  const pred = predsAll.find(p=>p.match_id===fm.id && p.user_id===leaderUid) || null;
+  const fakeM = {...fm, home_score:h, away_score:a};
+  const g = grade(pred, fakeM);
+  return g ? g.pts : 0;
+}
+
 function finalWinningScenario(uid, leader, fm, myP, meProf){
   const sc=scoringFor(fm.stage);
   const teamH=fm.team_home, teamA=fm.team_away;
   const odds=oddsOf(fm);
+  const leaderUid=leader.uid;
   const scenarios=[
     {winner:teamH, label:trName(teamH), side:"home"},
     {winner:teamA, label:trName(teamA), side:"away"}
   ];
   const out=scenarios.map(sn=>{
-    // Bu senaryoda şampiyon kesin olarak sn.winner — bonus SADECE bu tarafa uygulanır.
-    const leaderGets = (leader.champion===sn.winner) ? (CHAMPION_POINTS[sn.winner]||0) : 0;
-    const myGets = (meProf.champion===sn.winner) ? (CHAMPION_POINTS[sn.winner]||0) : 0;
-    const need = (leader.P||0) + leaderGets - myP - myGets + 1;
-
+    const champTeam=sn.winner;
+    const myChampGain = champGainIfWinner(meProf.champion, champTeam);
     let best=null;
     if(odds){
       Object.keys(odds).forEach(k=>{
@@ -2408,15 +2419,24 @@ function finalWinningScenario(uid, leader, fm, myP, meProf){
         const winnerOk = sn.side==="home" ? (h>a) : (a>h);
         if(!winnerOk) return;
         const bonus=dynamicBonus(fm,k); if(bonus==null) return;
-        const total=sc.outc+bonus;
-        if(total>=need && (!best || total<best.total)) best={home:h,away:a,total};
+        const myTotal = sc.outc+bonus;
+        const leaderChampGain = champGainIfWinner(leader.champion, champTeam);
+        const leaderPts = leaderFinalPts(leaderUid, fm, h, a) + leaderChampGain;
+        const need = (leader.P||0) + leaderPts - myP - myChampGain + 1;
+        if(myTotal>=need && (!best || myTotal<best.total)){
+          best={home:h, away:a, total:myTotal};
+        }
       });
     }
     if(!best){
+      const leaderChampGain = champGainIfWinner(leader.champion, champTeam);
+      const leaderHasPred = predsAll.some(p=>p.match_id===fm.id && p.user_id===leaderUid);
+      const leaderPts = (leaderHasPred? sc.outc : 0) + leaderChampGain;
+      const need = (leader.P||0) + leaderPts - myP - myChampGain + 1;
       const jackTotal=sc.outc+dynOther(fm.stage);
-      if(jackTotal>=need) best={other:true,total:jackTotal};
+      if(jackTotal>=need) best={other:true, total:jackTotal};
     }
-    return {winnerLabel:sn.label, need, best, champGain:myGets};
+    return {winnerLabel:sn.label, best, champGain:myChampGain};
   });
   return {possible: out.some(o=>o.best), isFinalSpecial:true, finalScenarios:out};
 }
