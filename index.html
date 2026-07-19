@@ -4103,11 +4103,16 @@ function renderPledgeWidget(){
   if(!hasPaid() || appConfig.prize_on!=="1" || total===0){ el.style.display="none"; el.innerHTML=""; return; }
   el.style.display="";
   const gif="https://i.imgflip.com/aw4fzm.gif";
+  const rows = appConfig.champion_winner ? buildLeaderboard() : null;
+  const winnerName = rows && rows[0] ? esc(rows[0].username) : null;
+  const caption = winnerName
+    ? `🏆 FIFA Dünya Kupası 26 Orijinal Futbol Topu <b>${winnerName}</b>'ın oluyor!`
+    : `🏆 FIFA Dünya Kupası 26 Orijinal Futbol Topu sahibini bekliyor`;
   el.innerHTML=`
     <div class="pw-ball">
       <img src="${gif}" alt="" loading="lazy">
     </div>
-    <div class="pw-caption">🏆 FIFA Dünya Kupası 26 Orijinal Futbol Topu sahibini bekliyor</div>`;
+    <div class="pw-caption">${caption}</div>`;
 }
 function renderChampMini(){
   const el=$("#champMini"); if(!el) return;
