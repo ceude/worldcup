@@ -2960,12 +2960,17 @@ function paidSet(){
 function maybeShowOpeningPopup(){
   // 0) EN ÖNCE: Monte Carlo pop-up'ı (her açılışta, final-6saate kadar)
   if(me && mcPopWindowOpen()){ showMcPopup(); return; }
-  // 0-A) Şampiyon ilan edildi → tam ekran tören (bir kez zorunlu)
-  if(me && appConfig.champion_winner && typeof ceremonySeen==="function" && !ceremonySeen()){
-    markCeremonySeen(); showChampionCeremony({first:true}); return;
+ // 0-A) Şampiyon ilan edildi → tam ekran tören (podyum + turnuva özeti).
+  // İlk açılışta zorunlu (atla butonları yok), sonraki HER açılışta da gösterilir
+  // ama artık atla butonları aktiftir.
+  if(me && appConfig.champion_winner){
+    const first = typeof ceremonySeen==="function" ? !ceremonySeen() : true;
+    if(first && typeof markCeremonySeen==="function") markCeremonySeen();
+    showChampionCeremony({first});
+    return;
   }
-  // 0a) Turnuva bitti: şampiyon ilan edilince herkese, her açılışta özet kartı (admin: önizleme olarak her zaman)
-  if(me && wrapAvailable()){ showWrapPopup(session.user.id); return; }
+  // 0a) Şampiyon henüz ilan edilmediyse: admin, turnuva özetini önizleme olarak görebilsin
+  if(me && me.is_admin && !appConfig.champion_winner){ showWrapPopup(session.user.id); return; }
   // 0b) Mobilde herkese bir kez GIF ödül pop-up'ı (masaüstünde sağ alt kart var)
   if(me && isMobileView() && appConfig.prize_on==="1" && !gifPopSeen(session.user.id)){
     showGifPrizePopup(); markGifPopSeen(session.user.id); return;
