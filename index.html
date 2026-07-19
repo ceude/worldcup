@@ -2604,7 +2604,7 @@ function remainInfoHTML(){
   const remaining=matches.filter(m=> !m.finished && !isInPlay(m));
   const remMax=remaining.reduce((s,m)=> s + scoringFor(m.stage).exact, 0);
   return `🎯 <b>Kalan maç sayısı: ${remaining.length}.</b><br>
-    Kalan maçlarda sadece standart skorlarla bile <b>${remMax.toLocaleString("tr-TR")} puan daha</b> kazanabilirsin. Ekstra, turnuva sonunda <b style="color:var(--gold2)">Şampiyon Tahmin Bonusu</b> da seni bekliyor!`;
+   Ekstra, turnuva sonunda <b style="color:var(--gold2)">Şampiyon Tahmin Bonusu</b> seni bekliyor!`;
 }
 function renderLeaderboard(){
   const rows=buildLeaderboard();
