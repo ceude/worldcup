@@ -2259,7 +2259,9 @@ function buildLeaderboard(){
     return {pts,exact,outc,last,live};
   }
   let rows=players.map(p=>{ const t=tot(p.id,false);
-    return {id:p.id, username:p.username, is_admin:p.is_admin, fav:p.fav_team, champion:p.champion, pts:t.pts, exact:t.exact, outc:t.outc,
+    const sbPts = sideBonus(p.final_side_bets);   // final yan bahis bonusu — maç bitmesini beklemez
+    return {id:p.id, username:p.username, is_admin:p.is_admin, fav:p.fav_team, champion:p.champion,
+            pts:t.pts+sbPts, exact:t.exact, outc:t.outc, sbPts,
             lastPts:t.last, livePts:t.live, picks:(predCounts&&predCounts[p.id]!=null)?predCounts[p.id]:0 }; });
   // Şampiyon bonusu: kazanan ilan edildiyse, doğru tahmin edenlere ekle
   const champWinner = appConfig.champion_winner;
