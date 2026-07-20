@@ -3759,8 +3759,23 @@ function computeProgression(){
       ev.ms.forEach(m=>{ const g=grade(predBy[pl.id+"|"+m.id]||null,m); cum+=g?g.pts:0; });
       return cum;
     });
-    return {id:pl.id,name:pl.username,color:playerColors[pl.id]||"#9bb",pts};
+    return {id:pl.id,name:pl.username,color:playerColors[pl.id]||"#9bb",pts,_cum:cum};
   });
+  // Final günü: şampiyon bonusu + yan tahminleri ayrı bir "Bonus" noktası olarak ekle
+  const champWinner=appConfig.champion_winner;
+  const sideDone=(typeof sideResults==="function") && Object.keys(sideResults()||{}).length>0;
+  let bonusTotal=0;
+  const bonusByPl=players.map(pl=>{
+    const cb=(champWinner && pl.champion===champWinner)?(CHAMPION_POINTS[champWinner]||0):0;
+    const sb=sideDone?sideBonus(pl.final_side_bets):0;
+    const b=cb+sb; bonusTotal+=b; return b;
+  });
+  if(bonusTotal>0){
+    const last=events[events.length-1];
+    events.push({t:last.t+1, day:last.day, time:"Bonus", count:0, live:false, bonus:true});
+    series.forEach((s,i)=>{ s.pts.push(s._cum + bonusByPl[i]); });
+  }
+  series.forEach(s=>{ delete s._cum; });
   const anyLive=events.some(e=>e.live);
   return {events,series,hasData:true,anyLive};
 }
